@@ -293,7 +293,7 @@ static void GBASetActiveRegion(struct ARMCore* cpu, uint32_t address) {
 			cpu->memory.activeMask &= -WORD_SIZE_ARM;
 		}
 		if (address >= GBA_BASE_XGBA_ROM && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
-			if (memory->xgbaRom && memory->xgbaRomSize == GBA_SIZE_XGBA_ROM) {
+			if (memory->xgbaRom && (size_t) (address - GBA_BASE_XGBA_ROM) < memory->xgbaRomSize) {
 				return;
 			}
 		} else if (newRegion < GBA_REGION_ROM0 || (address & (GBA_SIZE_ROM0 - 1)) < memory->romSize) {
@@ -306,7 +306,7 @@ static void GBASetActiveRegion(struct ARMCore* cpu, uint32_t address) {
 	}
 	memory->activeRegion = newRegion;
 	if (address >= GBA_BASE_XGBA_ROM && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM
-	    && memory->xgbaRom && memory->xgbaRomSize == GBA_SIZE_XGBA_ROM) {
+	    && memory->xgbaRom && (size_t) (address - GBA_BASE_XGBA_ROM) < memory->xgbaRomSize) {
 		cpu->memory.accessSource = mACCESS_PROGRAM;
 		cpu->memory.activeRegion = (uint32_t*) memory->xgbaRom;
 		cpu->memory.activeMask = GBA_SIZE_XGBA_ROM - 1;
@@ -1174,6 +1174,10 @@ uint32_t GBAView32(struct ARMCore* cpu, uint32_t address) {
 	struct GBA* gba = (struct GBA*) cpu->master;
 	uint32_t value = 0;
 	address &= ~3;
+	if (gba->memory.xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		return GBALoad32(cpu, address, NULL);
+	}
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_BIOS:
 		if (address < GBA_SIZE_BIOS) {
@@ -1213,6 +1217,10 @@ uint16_t GBAView16(struct ARMCore* cpu, uint32_t address) {
 	struct GBA* gba = (struct GBA*) cpu->master;
 	uint16_t value = 0;
 	address &= ~1;
+	if (gba->memory.xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		return GBALoad16(cpu, address, NULL);
+	}
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_BIOS:
 		if (address < GBA_SIZE_BIOS) {
@@ -1253,6 +1261,10 @@ uint16_t GBAView16(struct ARMCore* cpu, uint32_t address) {
 uint8_t GBAView8(struct ARMCore* cpu, uint32_t address) {
 	struct GBA* gba = (struct GBA*) cpu->master;
 	uint8_t value = 0;
+	if (gba->memory.xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		return GBALoad8(cpu, address, NULL);
+	}
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_BIOS:
 		if (address < GBA_SIZE_BIOS) {
