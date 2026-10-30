@@ -1,0 +1,59 @@
+name: XGBA baseline CI
+
+on:
+  push:
+    branches:
+      - master
+      - xgba/p0-foundation
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config libcmocka-dev zlib1g-dev
+
+      - name: Configure headless GBA build
+        run: |
+          cmake -S . -B build-xgba -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DM_CORE_GBA=ON \
+            -DM_CORE_GB=OFF \
+            -DBUILD_QT=OFF \
+            -DBUILD_SDL=OFF \
+            -DBUILD_HEADLESS=ON \
+            -DBUILD_SUITE=ON \
+            -DENABLE_SCRIPTING=OFF \
+            -DUSE_FFMPEG=OFF \
+            -DUSE_EDITLINE=OFF \
+            -DUSE_DISCORD_RPC=OFF
+
+      - name: Build emulator and tests
+        run: cmake --build build-xgba --parallel 2
+
+      - name: Confirm tests were discovered
+        run: |
+          ctest --test-dir build-xgba -N | tee xgba-test-list.txt
+          if grep -q 'Total Tests: 0' xgba-test-list.txt; then
+            echo 'No tests discovered' >&2
+            exit 1
+          fi
+
+      - name: Run baseline tests
+        run: ctest --test-dir build-xgba --output-on-failure
+
+      - name: Verify headless emulator exists
+        run: test -x build-xgba/mgba-headless
