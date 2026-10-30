@@ -65,3 +65,9 @@ jobs:
 
       - name: Verify headless emulator exists
         run: test -x build-xgba/mgba-headless
+
+      - name: Generate smoke-test cartridge for the actual frontend
+        run: python3 tools/xgba_generate_test_rom.py --headless build-xgba/xgba-frontend.gba
+
+      - name: Launch XGBA through the headless executable
+        run: timeout 15s build-xgba/mgba-headless -S 3 build-xgba/xgba-frontend.gba
