@@ -1556,7 +1556,13 @@ uint32_t GBALoadMultiple(struct ARMCore* cpu, uint32_t address, int mask, enum L
 	}
 	int wait = memory->waitstatesSeq32[region] - memory->waitstatesNonseq32[region];
 
-	switch (region) {
+	if (memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		address &= ~3U;
+		wait = memory->waitstatesSeq32[GBA_REGION_ROM0] - memory->waitstatesNonseq32[GBA_REGION_ROM0];
+		LDM_LOOP(value = GBALoad32(cpu, address, NULL));
+	} else {
+		switch (region) {
 	case GBA_REGION_BIOS:
 		LDM_LOOP(LOAD_BIOS);
 		break;
@@ -1593,6 +1599,7 @@ uint32_t GBALoadMultiple(struct ARMCore* cpu, uint32_t address, int mask, enum L
 	default:
 		LDM_LOOP(LOAD_BAD);
 		break;
+		}
 	}
 
 	if (cycleCounter) {
