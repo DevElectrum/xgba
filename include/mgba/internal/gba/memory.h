@@ -108,6 +108,7 @@ struct GBAMemory {
 	uint32_t* iwram;
 	uint32_t* rom;
 	uint8_t* xgbaRom;
+	bool xgbaRomOwned;
 	uint16_t io[512];
 
 	struct GBACartridgeHardware hw;
