@@ -718,6 +718,24 @@ uint32_t GBALoad8(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 		return value;
 	}
 
+	if (memory->xgbaRom && memory->rom
+	    && ((const uint8_t*) memory->rom)[0xBC] == 0xE5
+	    && (address >> BASE_OFFSET) == GBA_REGION_SRAM_MIRROR) {
+		uint32_t offset = address - GBA_BASE_SRAM_MIRROR;
+		if (memory->savedata.type == GBA_SAVEDATA_AUTODETECT) {
+			GBASavedataInitFlash(&memory->savedata);
+		}
+		value = 0xFF;
+		if (offset < GBA_SIZE_XGBA_E5_EXTENSION
+		    && memory->savedata.xgbaE5 && memory->savedata.data) {
+			value = memory->savedata.data[GBA_SIZE_FLASH1M + offset];
+		}
+		if (cycleCounter) {
+			*cycleCounter += memory->waitstatesNonseq16[GBA_REGION_SRAM_MIRROR] + 2;
+		}
+		return value;
+	}
+
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_BIOS:
 		if (address < GBA_SIZE_BIOS) {
@@ -1089,6 +1107,24 @@ void GBAStore8(struct ARMCore* cpu, uint32_t address, int8_t value, int* cycleCo
 	struct GBAMemory* memory = &gba->memory;
 	int wait = 0;
 	uint16_t oldValue;
+
+	if (memory->xgbaRom && memory->rom
+	    && ((const uint8_t*) memory->rom)[0xBC] == 0xE5
+	    && (address >> BASE_OFFSET) == GBA_REGION_SRAM_MIRROR) {
+		uint32_t offset = address - GBA_BASE_SRAM_MIRROR;
+		if (memory->savedata.type == GBA_SAVEDATA_AUTODETECT) {
+			GBASavedataInitFlash(&memory->savedata);
+		}
+		if (offset < GBA_SIZE_XGBA_E5_EXTENSION
+		    && memory->savedata.xgbaE5 && memory->savedata.data) {
+			memory->savedata.data[GBA_SIZE_FLASH1M + offset] = value;
+			memory->savedata.dirty |= mSAVEDATA_DIRT_NEW;
+		}
+		if (cycleCounter) {
+			*cycleCounter += memory->waitstatesNonseq16[GBA_REGION_SRAM_MIRROR] + 1;
+		}
+		return;
+	}
 
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_EWRAM:
