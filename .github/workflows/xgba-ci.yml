@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - master
+      - xgba/p0-foundation
   workflow_dispatch:
 
 permissions:
