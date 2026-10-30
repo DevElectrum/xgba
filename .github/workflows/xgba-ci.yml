@@ -69,5 +69,5 @@ jobs:
       - name: Verify headless and SDL desktop emulator builds
         run: |
           test -x build-xgba/mgba-headless
-          test -x build-xgba/mgba-sdl
+          test -x build-xgba/sdl/mgba
 
