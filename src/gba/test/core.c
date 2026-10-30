@@ -78,6 +78,10 @@ M_TEST_DEFINE(loadExtendedROM) {
 	uint16_t thumbOp = 0x2135;
 	memcpy(&image[armOffset], &armOp, sizeof(armOp));
 	memcpy(&image[thumbOffset], &thumbOp, sizeof(thumbOp));
+	uint32_t crossBefore = 0xE3A07013;
+	uint32_t crossAfter = 0xE3A0801D;
+	memcpy(&image[GBA_SIZE_ROM0 - 4], &crossBefore, sizeof(crossBefore));
+	memcpy(&image[GBA_SIZE_ROM0], &crossAfter, sizeof(crossAfter));
 
 	struct VFile* vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
 	assert_non_null(vf);
@@ -143,14 +147,29 @@ M_TEST_DEFINE(loadExtendedROM) {
 	ARMRun(cpu);
 	assert_int_equal(cpu->gprs[1], 53);
 
+	_ARMSetMode(cpu, MODE_ARM);
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 - 4;
+	ARMWritePC(cpu);
+	assert_int_equal(cpu->prefetch[0], crossBefore);
+	assert_int_equal(cpu->prefetch[1], crossAfter);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[7], 19);
+	assert_int_equal(cpu->gprs[8], 29);
+
 	GBAAdjustWaitstates(gba, 0x001C);
 	int extendedCycles = 0;
 	int conventionalCycles = 0;
 	GBALoad32(cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, &extendedCycles);
 	GBALoad32(cpu, GBA_BASE_ROM0 + 0x100, &conventionalCycles);
 	assert_int_equal(extendedCycles, conventionalCycles);
-	assert_int_equal(gba->memory.waitstatesSeq16[GBA_REGION_XGBA_ROM],
-	    gba->memory.waitstatesSeq16[GBA_REGION_ROM0]);
+	for (int region = GBA_REGION_XGBA_ROM; region < GBA_REGION_XGBA_ROM + 16; ++region) {
+		assert_int_equal(gba->memory.waitstatesSeq16[region], gba->memory.waitstatesSeq16[GBA_REGION_ROM0]);
+		assert_int_equal(gba->memory.waitstatesNonseq16[region], gba->memory.waitstatesNonseq16[GBA_REGION_ROM0]);
+		assert_int_equal(gba->memory.waitstatesSeq32[region], gba->memory.waitstatesSeq32[GBA_REGION_ROM0]);
+		assert_int_equal(gba->memory.waitstatesNonseq32[region], gba->memory.waitstatesNonseq32[GBA_REGION_ROM0]);
+	}
 
 	const uint32_t dmaSource = GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0;
 	assert_int_equal(GBADMAWriteSAD(gba, 3, dmaSource), dmaSource);
