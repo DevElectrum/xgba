@@ -7,7 +7,7 @@ Updated: 2026-10-30
 - Emulator `DevElectrum/xgba`, `master` remains untouched.
 - Original emulator foundation: `xgba/p0-foundation`, [draft PR #1](https://github.com/DevElectrum/xgba/pull/1).
 - Validated CPU/mapping branch: `xgba/p0-validation-20261030`, [draft PR #2](https://github.com/DevElectrum/xgba/pull/2), verified 16 CTest suites and SDL compilation in [Actions #94](https://github.com/DevElectrum/xgba/actions/runs/41014962808).
-- Current **mandatory fast-forward fix** branch: `xgba/p1-fast-forward`, based on validation branch. **Do not declare speed fixed until the user tests it in actual Emerald gameplay.**
+- Current **mandatory fast-forward fix** branch: `xgba/p1-fast-forward`, [draft PR #3](https://github.com/DevElectrum/xgba/pull/3) targeting the validation branch. Code implementation verified with **green XGBA Actions #41020527790** (https://github.com/DevElectrum/xgba/actions/runs/41020527790), including emulator tests, SDL build, and static fast-forward contract. **Do not declare speed fixed until the user tests it in actual Emerald gameplay.**
 - ROM test repo: `DevElectrum/xgba-emerald-test`, branch `xgba/e0-expanded-layout`, draft PR #1. User confirmed the generated 64 MiB Emerald ROM **works fine** interactively in XGBA. Build/ROM-integrity CI passed. This proof uses Littleroot map data relocated to CPU address `0x12000000`.
 - **Do not edit** `DevElectrum/grand-anthology` for either emulator or Emerald tests.
 - User explicitly requires a **fast-forwardable XGBA**; never again distribute or recommend a build without turbo. Treat this as a required acceptance gate. The expected keyboard shortcut is **hold Tab to accelerate, release Tab to restore normal speed**.
