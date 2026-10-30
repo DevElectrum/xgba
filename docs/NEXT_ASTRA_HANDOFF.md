@@ -10,6 +10,16 @@ Updated: 2026-10-30
 - Expected Qt executable: `build-xgba/qt/mgba-qt` (verify actual build output). CMake Qt frontend requires Qt Widgets/Network, with Qt Multimedia or SDL audio; Qt6 also needs OpenGL + OpenGLWidgets packages.
 - Next: guide user through Qt dependencies / reconfigure while retaining SDL and its working turbo; keep living handoff current.
 
+## Qt GUI configuration failure and fix (2026-10-30)
+
+- User requested menu-rich mGBA GUI. Previously recommended Qt6 configure stopped at `src/platform/qt/CMakeLists.txt:506` with `string sub-command REPLACE requires at least four arguments`, then Ninja could not find `build.ninja`; executable `build-xgba-gui/qt/mgba-qt` never existed.
+- **Root cause:** no Git release tags in this fork; unquoted `\${RELEASE_TAGS}` expanded to zero arguments in `string(REPLACE "\\n" ";" TAGS_LIST \${RELEASE_TAGS})`. This is a source CMake bug, **not** evidence that the Qt libraries were missing. An absent optional Qt6LinguistTools package also warned but was not the fatal CMake error.
+- **Fix committed:** `daaf7f7e0947320c4030d4b8d99ddc23fd16731f` quotes the interpolation `"\${RELEASE_TAGS}"` to permit an empty tag list.
+- **Qt compilation coverage:** `.github/workflows/xgba-qt.yml` was added in commit `447e8e983215fa5afe4369748b6a88e09e1806b6`, installing Qt6 dev libraries and compiling `mgba-qt` in CI. Check https://github.com/DevElectrum/xgba/actions/workflows/xgba-qt.yml and wait for green before claiming verified compilation.
+- **Immediate workaround** without source update: pass `-DSKIP_GIT=ON` when configuring Qt. This skips optional release-tag metadata processing.
+- **Local recommended fix:** `cd ~/Projects/xgba && git pull --ff-only origin xgba/p1-fast-forward`, then rerun the Qt6 configure and build; keep `BUILD_QT=ON`, `BUILD_SDL=ON`, `FORCE_QT_VERSION=6`, install `qt6-base-dev qt6-multimedia-dev libqt6opengl6-dev qt6-l10n-tools` if needed. Do not run Ninja after a failed configure.
+- User confirmed **Tab fast-forward works in the SDL build**. Qt turbo behavior still requires a separate manual smoke test after the Qt UI launches.
+
 ## State and repositories
 
 - Emulator `DevElectrum/xgba`, `master` remains untouched.
