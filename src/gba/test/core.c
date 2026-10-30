@@ -323,6 +323,33 @@ M_TEST_DEFINE(generatedExtendedProgram) {
 	core->deinit(core);
 }
 
+M_TEST_DEFINE(generatedLegacyProgram) {
+	const char* path = getenv("XGBA_LEGACY_ROM");
+	if (!path) {
+		return;
+	}
+	struct VFile* vf = VFileOpen(path, O_RDONLY);
+	assert_non_null(vf);
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	assert_true(core->loadROM(core, vf));
+
+	struct GBA* gba = core->board;
+	struct ARMCore* cpu = gba->cpu;
+	assert_null(gba->memory.xgbaRom);
+	assert_int_equal(gba->memory.romSize, 16 * 1024 * 1024);
+	cpu->gprs[ARM_PC] = GBA_BASE_ROM0;
+	ARMWritePC(cpu);
+	cpu->nextEvent = INT_MAX;
+	for (int i = 0; i < 6; ++i) {
+		ARMRun(cpu);
+	}
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0xC0FFEE42);
+	core->unloadROM(core);
+	core->deinit(core);
+}
+
 M_TEST_SUITE_DEFINE(GBACore,
 	cmocka_unit_test(create),
 	cmocka_unit_test(platform),
@@ -331,6 +358,7 @@ M_TEST_SUITE_DEFINE(GBACore,
 	cmocka_unit_test(loadExtendedROM),
 	XGBA_FILE_TEST
 	cmocka_unit_test(generatedExtendedProgram),
+	cmocka_unit_test(generatedLegacyProgram),
 	cmocka_unit_test(partialExtendedROM),
 	cmocka_unit_test(unmarkedOversizedROM),
 	cmocka_unit_test(rejectExtendedROMOverLimit))
