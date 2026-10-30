@@ -53,7 +53,8 @@ enum GBAMemoryBase {
 	GBA_BASE_ROM2 = 0x0C000000,
 	GBA_BASE_ROM2_EX = 0x0D000000,
 	GBA_BASE_SRAM = 0x0E000000,
-	GBA_BASE_SRAM_MIRROR = 0x0F000000
+	GBA_BASE_SRAM_MIRROR = 0x0F000000,
+	GBA_BASE_XGBA_ROM = 0x10000000
 };
 
 enum {
@@ -67,6 +68,7 @@ enum {
 	GBA_SIZE_ROM0 = 0x02000000,
 	GBA_SIZE_ROM1 = 0x02000000,
 	GBA_SIZE_ROM2 = 0x02000000,
+	GBA_SIZE_XGBA_ROM = 0x10000000,
 	GBA_SIZE_SRAM = 0x00008000,
 	GBA_SIZE_SRAM512 = 0x00010000,
 	GBA_SIZE_FLASH512 = 0x00010000,
@@ -104,6 +106,7 @@ struct GBAMemory {
 	uint32_t* wram;
 	uint32_t* iwram;
 	uint32_t* rom;
+	uint8_t* xgbaRom;
 	uint16_t io[512];
 
 	struct GBACartridgeHardware hw;
@@ -112,6 +115,7 @@ struct GBAMemory {
 	struct GBAUnlCart unl;
 	struct GBACartEReader ereader;
 	size_t romSize;
+	size_t xgbaRomSize;
 	uint32_t romMask;
 	uint16_t romID;
 	int fullBios;
