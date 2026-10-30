@@ -217,9 +217,10 @@ struct GBACore {
 	bool hasOverride;
 	struct mDebuggerPlatform* debuggerPlatform;
 	struct mCheatDevice* cheatDevice;
-	struct mCoreMemoryBlock memoryBlocks[12];
+	struct mCoreMemoryBlock memoryBlocks[13];
 	size_t nMemoryBlocks;
 	int memoryBlockType;
+	bool memoryBlockIsXgba;
 };
 
 #define _MAX(A, B) ((A > B) ? (A) : (B))
@@ -1112,7 +1113,8 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 	const struct GBA* gba = core->board;
 	struct GBACore* gbacore = (struct GBACore*) core;
 
-	if (gbacore->memoryBlockType != gba->memory.savedata.type) {
+	if (gbacore->memoryBlockType != gba->memory.savedata.type
+	    || gbacore->memoryBlockIsXgba != (gba->memory.xgbaRom != NULL)) {
 		switch (gba->memory.savedata.type) {
 		case GBA_SAVEDATA_SRAM:
 			memcpy(gbacore->memoryBlocks, _GBAMemoryBlocksSRAM, sizeof(_GBAMemoryBlocksSRAM));
@@ -1150,7 +1152,18 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 				gbacore->memoryBlocks[i].size = gba->memory.romSize;
 			}
 		}
+		if (gba->memory.xgbaRom) {
+			struct mCoreMemoryBlock extended = {
+				GBA_REGION_XGBA_ROM, "xgba", "XGBA ROM", "Extended ROM (up to 256MiB)",
+				GBA_BASE_XGBA_ROM, GBA_BASE_XGBA_ROM + gba->memory.xgbaRomSize,
+				gba->memory.xgbaRomSize, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED
+			};
+			gbacore->memoryBlocks[gbacore->nMemoryBlocks++] = extended;
+			gbacore->memoryBlocks[0].end = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM;
+			gbacore->memoryBlocks[0].size = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM;
+		}
 		gbacore->memoryBlockType = gba->memory.savedata.type;
+		gbacore->memoryBlockIsXgba = gba->memory.xgbaRom != NULL;
 
 		mCALLBACKS_INVOKE(gba, memoryBlocksChanged);
 	}
@@ -1187,6 +1200,9 @@ void* _GBACoreGetMemoryBlock(struct mCore* core, size_t id, size_t* sizeOut) {
 	case GBA_REGION_ROM2:
 		*sizeOut = gba->memory.romSize;
 		return gba->memory.rom;
+	case GBA_REGION_XGBA_ROM:
+		*sizeOut = gba->memory.xgbaRomSize;
+		return gba->memory.xgbaRom;
 	case GBA_REGION_SRAM:
 		if (gba->memory.savedata.type == GBA_SAVEDATA_FLASH1M) {
 			*sizeOut = GBA_SIZE_FLASH1M;

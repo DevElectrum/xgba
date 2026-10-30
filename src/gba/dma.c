@@ -65,7 +65,12 @@ uint32_t GBADMAWriteSAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMASAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA source address: 0x%08X", address);
 	}
-	memory->dma[dma].source = address & DMA_SRC_MASK[dma];
+	if (dma > 0 && memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		memory->dma[dma].source = address & ~1U;
+	} else {
+		memory->dma[dma].source = address & DMA_SRC_MASK[dma];
+	}
 	return memory->dma[dma].source;
 }
 
@@ -105,7 +110,9 @@ uint16_t GBADMAWriteCNT_HI(struct GBA* gba, int dma, uint16_t control) {
 	currentDma->reg = control;
 
 	uint32_t width = 2 << GBADMARegisterGetWidth(currentDma->reg);
-	if (currentDma->source >= GBA_BASE_ROM0 && currentDma->source < GBA_BASE_SRAM) {
+	if ((currentDma->source >= GBA_BASE_ROM0 && currentDma->source < GBA_BASE_SRAM)
+	    || (memory->xgbaRom && currentDma->source >= GBA_BASE_XGBA_ROM
+	        && currentDma->source < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM)) {
 		currentDma->sourceOffset = width;
 	} else {
 		currentDma->sourceOffset = DMA_OFFSET[GBADMARegisterGetSrcControl(currentDma->reg)] * width;
@@ -319,7 +326,9 @@ void GBADMAService(struct GBA* gba, int number, struct GBADMA* info) {
 	info->nextDest += info->destOffset;
 	if (UNLIKELY(sourceRegion != info->nextSource >> BASE_OFFSET) || UNLIKELY(destRegion != info->nextDest >> BASE_OFFSET)) {
 		// Crossed region boundary
-		if (info->nextSource >= GBA_BASE_ROM0 && info->nextSource < GBA_BASE_SRAM) {
+		if ((info->nextSource >= GBA_BASE_ROM0 && info->nextSource < GBA_BASE_SRAM)
+		    || (memory->xgbaRom && info->nextSource >= GBA_BASE_XGBA_ROM
+		        && info->nextSource < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM)) {
 			info->sourceOffset = width;
 		} else {
 			info->sourceOffset = DMA_OFFSET[GBADMARegisterGetSrcControl(info->reg)] * width;
