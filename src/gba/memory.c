@@ -494,7 +494,8 @@ uint32_t GBALoad32(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 		if (cycleCounter) {
 			*cycleCounter += memory->waitstatesNonseq32[GBA_REGION_ROM0] + 2;
 		}
-		return ROR(value, (address & 3) << 3);
+		int rotate = (address & 3) << 3;
+		return ROR(value, rotate);
 	}
 
 	switch (address >> BASE_OFFSET) {
@@ -567,7 +568,8 @@ uint32_t GBALoad16(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 		if (cycleCounter) {
 			*cycleCounter += memory->waitstatesNonseq16[GBA_REGION_ROM0] + 2;
 		}
-		return ROR(value, (address & 1) << 3);
+		int rotate = (address & 1) << 3;
+		return ROR(value, rotate);
 	}
 
 	switch (address >> BASE_OFFSET) {
