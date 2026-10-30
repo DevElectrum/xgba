@@ -319,6 +319,14 @@ M_TEST_DEFINE(generatedExtendedProgram) {
 	assert_int_equal(cpu->gprs[3], 123);
 	free(savedState);
 
+	cpu->gprs[ARM_PC] = GBA_BASE_ROM0 + 0x140;
+	ARMWritePC(cpu);
+	cpu->nextEvent = INT_MAX;
+	for (int i = 0; i < 130; ++i) {
+		ARMRun(cpu);
+	}
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x104, NULL), 0x6CCF7CBE);
+
 	core->unloadROM(core);
 	core->deinit(core);
 }
