@@ -281,6 +281,17 @@ void GBASavedataInitFlash(struct GBASavedata* savedata) {
 		return;
 	}
 	savedata->xgbaE5 = savedata->type == GBA_SAVEDATA_FLASH1M && _xgbaE5Rom(savedata);
+	if (savedata->xgbaE5 && savedata->vf) {
+		const uint8_t marker[8] = { 'X', 'G', 'B', 'A', 'E', '5', 'S', 0 };
+		uint8_t found[sizeof(marker)];
+		if (savedata->vf->size(savedata->vf) < GBA_SIZE_XGBA_E5_SAVE
+		    || savedata->vf->seek(savedata->vf, GBA_SIZE_FLASH1M, SEEK_SET) < 0
+		    || savedata->vf->read(savedata->vf, found, sizeof(found)) != sizeof(found)
+		    || memcmp(marker, found, sizeof(marker)) != 0) {
+			mLOG(GBA_SAVE, WARN, "XGBA E5 needs an initialized 1 MiB save; keeping native flash unchanged");
+			savedata->xgbaE5 = false;
+		}
+	}
 	int32_t flashSize = GBA_SIZE_FLASH512;
 	if (savedata->type == GBA_SAVEDATA_FLASH1M) {
 		flashSize = savedata->xgbaE5 ? GBA_SIZE_XGBA_E5_SAVE : GBA_SIZE_FLASH1M;
