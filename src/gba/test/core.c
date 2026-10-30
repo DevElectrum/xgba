@@ -104,6 +104,38 @@ M_TEST_DEFINE(loadExtendedROM) {
 	mappedMemoryFree(image, GBA_SIZE_XGBA_ROM);
 }
 
+#ifndef _WIN32
+M_TEST_DEFINE(loadExtendedFileROM) {
+	char path[] = "/tmp/xgba-rom-XXXXXX";
+	int fd = mkstemp(path);
+	assert_true(fd >= 0);
+	assert_int_equal(ftruncate(fd, GBA_SIZE_XGBA_ROM), 0);
+	assert_int_equal(lseek(fd, 0xB5, SEEK_SET), 0xB5);
+	assert_int_equal(write(fd, "XGBA256", 7), 7);
+	assert_int_equal(lseek(fd, GBA_SIZE_XGBA_ROM - 4, SEEK_SET), GBA_SIZE_XGBA_ROM - 4);
+	uint8_t lastWord[4] = { 0x78, 0x56, 0x34, 0x12 };
+	assert_int_equal(write(fd, lastWord, sizeof(lastWord)), sizeof(lastWord));
+	assert_int_equal(close(fd), 0);
+
+	struct VFile* vf = VFileOpen(path, O_RDONLY);
+	assert_non_null(vf);
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	assert_true(core->loadROM(core, vf));
+	struct GBA* gba = core->board;
+	assert_int_equal(gba->memory.xgbaRomSize, GBA_SIZE_XGBA_ROM);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 4, NULL), 0x12345678);
+
+	core->unloadROM(core);
+	core->deinit(core);
+	assert_int_equal(remove(path), 0);
+}
+#define XGBA_FILE_TEST cmocka_unit_test(loadExtendedFileROM),
+#else
+#define XGBA_FILE_TEST
+#endif
+
 M_TEST_DEFINE(unmarkedOversizedROM) {
 	struct mCore* core = GBACoreCreate();
 	assert_non_null(core);
@@ -155,5 +187,6 @@ M_TEST_SUITE_DEFINE(GBACore,
 	cmocka_unit_test(reset),
 	cmocka_unit_test(loadNullROM),
 	cmocka_unit_test(loadExtendedROM),
+	XGBA_FILE_TEST
 	cmocka_unit_test(unmarkedOversizedROM),
 	cmocka_unit_test(rejectExtendedROMOverLimit))
