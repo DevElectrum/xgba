@@ -482,6 +482,21 @@ uint32_t GBALoad32(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 	int wait = 0;
 	char* waitstatesRegion = memory->waitstatesNonseq32;
 
+	if (memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		size_t offset = (address - GBA_BASE_XGBA_ROM) & ~3U;
+		if (offset + 4 <= memory->xgbaRomSize) {
+			LOAD_32(value, offset, memory->xgbaRom);
+		} else {
+			mLOG(GBA_MEM, GAME_ERROR, "Out of bounds XGBA ROM Load32: 0x%08X", address);
+			value = GBALoadBad(cpu);
+		}
+		if (cycleCounter) {
+			*cycleCounter += memory->waitstatesNonseq32[GBA_REGION_ROM0] + 2;
+		}
+		return ROR(value, (address & 3) << 3);
+	}
+
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_BIOS:
 		LOAD_BIOS;
@@ -539,6 +554,21 @@ uint32_t GBALoad16(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 	struct GBAMemory* memory = &gba->memory;
 	uint32_t value = 0;
 	int wait = 0;
+
+	if (memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		size_t offset = (address - GBA_BASE_XGBA_ROM) & ~1U;
+		if (offset + 2 <= memory->xgbaRomSize) {
+			LOAD_16(value, offset, memory->xgbaRom);
+		} else {
+			mLOG(GBA_MEM, GAME_ERROR, "Out of bounds XGBA ROM Load16: 0x%08X", address);
+			value = GBALoadBad(cpu);
+		}
+		if (cycleCounter) {
+			*cycleCounter += memory->waitstatesNonseq16[GBA_REGION_ROM0] + 2;
+		}
+		return ROR(value, (address & 1) << 3);
+	}
 
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_BIOS:
@@ -654,6 +684,21 @@ uint32_t GBALoad8(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 	struct GBAMemory* memory = &gba->memory;
 	uint32_t value = 0;
 	int wait = 0;
+
+	if (memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		size_t offset = address - GBA_BASE_XGBA_ROM;
+		if (offset < memory->xgbaRomSize) {
+			value = memory->xgbaRom[offset];
+		} else {
+			mLOG(GBA_MEM, GAME_ERROR, "Out of bounds XGBA ROM Load8: 0x%08X", address);
+			value = GBALoadBad(cpu);
+		}
+		if (cycleCounter) {
+			*cycleCounter += memory->waitstatesNonseq16[GBA_REGION_ROM0] + 2;
+		}
+		return value;
+	}
 
 	switch (address >> BASE_OFFSET) {
 	case GBA_REGION_BIOS:
