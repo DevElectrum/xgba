@@ -34,5 +34,7 @@ with path.open("wb") as rom:
     rom.write(struct.pack("<I", 0x02000100))
     rom.seek(EXTENDED_TEST_OFFSET)
     rom.write(struct.pack("<I", TEST_VALUE))
+    rom.seek(EXTENDED_TEST_OFFSET + 0x10)
+    rom.write(struct.pack("<II", 0xE3A0307B, 0xEAFFFFFE))
 
 print(f"Created {path}: {ROM_SIZE} bytes; marker at 0x{EXTENDED_TEST_OFFSET:08X}")
