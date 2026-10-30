@@ -81,7 +81,7 @@ M_TEST_DEFINE(loadExtendedROM) {
 	uint32_t crossBefore = 0xE3A07013;
 	uint32_t crossAfter = 0xE3A0801D;
 	memcpy(&image[GBA_SIZE_ROM0 - 4], &crossBefore, sizeof(crossBefore));
-	memcpy(&image[GBA_SIZE_ROM0 + 0x200], &crossAfter, sizeof(crossAfter));
+	memcpy(&image[GBA_SIZE_ROM0], &crossAfter, sizeof(crossAfter));
 
 	struct VFile* vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
 	assert_non_null(vf);
