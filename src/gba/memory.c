@@ -1788,6 +1788,14 @@ void GBAAdjustWaitstates(struct GBA* gba, uint16_t parameters) {
 	memory->waitstatesSeq32[GBA_REGION_ROM1] = memory->waitstatesSeq32[GBA_REGION_ROM1_EX] = 2 * memory->waitstatesSeq16[GBA_REGION_ROM1] + 1;
 	memory->waitstatesSeq32[GBA_REGION_ROM2] = memory->waitstatesSeq32[GBA_REGION_ROM2_EX] = 2 * memory->waitstatesSeq16[GBA_REGION_ROM2] + 1;
 
+	for (int i = GBA_BASE_XGBA_ROM >> BASE_OFFSET;
+	     i < (GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) >> BASE_OFFSET; ++i) {
+		memory->waitstatesNonseq16[i] = memory->waitstatesNonseq16[GBA_REGION_ROM0];
+		memory->waitstatesSeq16[i] = memory->waitstatesSeq16[GBA_REGION_ROM0];
+		memory->waitstatesNonseq32[i] = memory->waitstatesNonseq32[GBA_REGION_ROM0];
+		memory->waitstatesSeq32[i] = memory->waitstatesSeq32[GBA_REGION_ROM0];
+	}
+
 	memory->prefetch = prefetch;
 
 	cpu->memory.activeSeqCycles32 = memory->waitstatesSeq32[memory->activeRegion];
