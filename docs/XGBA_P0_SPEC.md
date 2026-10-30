@@ -1,6 +1,6 @@
 # XGBA P0: Extended ROM design and acceptance plan
 
-Status: proposed specification, not yet implemented.
+Status: P0.0 and P0.1 implemented and tested; P0.2 CPU data-read implementation added, pending its exact-head CI result. Instruction execution, DMA and end-to-end testing are not yet implemented.
 
 ## Purpose
 
@@ -14,8 +14,8 @@ Do not modify `DevElectrum/grand-anthology` during XGBA P0.
 - Extended ROM: `0x10000000` through `0x1FFFFFFF`, 256 MiB window backed by ROM offsets `0x00000000` through `0x0FFFFFFF`.
 - The extended window's first 32 MiB aliases the legacy content; it must not duplicate ROM bytes in the file.
 - Original cartridge mirrors and all ordinary GBA memory regions retain their legacy behavior.
-- Extended data is read-only and is accessible using normal emulated 32-bit addresses. No cartridge banking.
-- Region detection and activation must be **opt-in**. Define a robust XGBA identification scheme before implementing ROM loading, to avoid interfering with existing mGBA special cartridges or oversized files.
+- Extended data is read-only and is accessible using normal emulated 32-bit addresses. No cartridge banking. The emulator keeps an independent backing map so legacy cartridge copy-on-write does not accidentally unmap the expanded data. Patching a legacy ROM and preserving alias consistency still require integration review.
+- Region detection and activation are **opt-in**: ROMs larger than 32 MiB with ASCII marker `XGBA256` at header offsets `0xB5..0xBB` use the expanded mapping. Tagged images over 256 MiB are rejected. Untagged oversized files retain upstream behavior. The marker occupies the GBA header's seven reserved bytes; a ROM-builder must recalculate the header checksum after changing those bytes.
 - This is a 256 **MiB** target (268,435,456 bytes), not 256,000,000 bytes.
 
 ## Invariants
@@ -30,22 +30,22 @@ Do not modify `DevElectrum/grand-anthology` during XGBA P0.
 
 ## Implementation order and gates
 
-### P0.0: Baseline CI
+### P0.0: Baseline CI (complete)
 
 - Headless Linux build, unit tests, and reproducible build settings in GitHub Actions.
-- Confirm no upstream behavior changed.
+- Baseline succeeded: run 41004425993.
 
-### P0.1: Loader
+### P0.1: Loader (complete)
 
-- Extend cartridge backing size and memory lifetime handling.
-- Keep legacy and expanded addressing separate.
-- Confirm loading, reading backing data, and unloading a synthetic 256 MiB file without crashes.
+- Extended backing, safe unloading and 32 MiB legacy mapping are implemented.
+- New unit tests load and unload a synthetic 256 MiB image, check legacy behavior for an unmarked 64 MiB image, and reject tagged images over 256 MiB.
+- The test-inclusive CI run 41005025428 passed.
 
-### P0.2: CPU data access
+### P0.2: CPU data access (in progress)
 
-- Implement 8-, 16-, and 32-bit extended ROM loads and expected unaligned behavior.
-- Verify the start, 32 MiB boundary, midpoint, last aligned word, and out-of-bounds access.
-- Test original ROM mirrors unaffected.
+- Bounded 8-, 16-, and 32-bit extended ROM loads were added to the CPU memory handlers, preserving legacy handling outside the opt-in address range.
+- Added checks for the 32 MiB boundary, midpoint, and last aligned word using CPU load handlers.
+- Additional checks still needed for unaligned loads, short images, out-of-bounds reads, legacy mirrors, and hardware timing.
 
 ### P0.3: Instruction fetching
 
