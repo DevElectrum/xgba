@@ -157,7 +157,11 @@ void GBAUnloadROM(struct GBA* gba) {
 	if (gba->romVf) {
 #ifndef FIXED_ROM_BUFFER
 		if (gba->memory.xgbaRom) {
-			gba->romVf->unmap(gba->romVf, gba->memory.xgbaRom, gba->memory.xgbaRomSize);
+			if (gba->memory.xgbaRomOwned) {
+				mappedMemoryFree(gba->memory.xgbaRom, GBA_SIZE_XGBA_ROM);
+			} else {
+				gba->romVf->unmap(gba->romVf, gba->memory.xgbaRom, gba->memory.xgbaRomSize);
+			}
 		}
 		if (gba->isPristine && gba->memory.rom) {
 			gba->romVf->unmap(gba->romVf, gba->memory.rom, gba->pristineRomSize);
@@ -168,6 +172,7 @@ void GBAUnloadROM(struct GBA* gba) {
 	}
 	gba->memory.rom = NULL;
 	gba->memory.xgbaRom = NULL;
+	gba->memory.xgbaRomOwned = false;
 	gba->memory.xgbaRomSize = 0;
 	gba->memory.romSize = 0;
 	gba->memory.romMask = 0;
@@ -456,7 +461,19 @@ bool GBALoadROM(struct GBA* gba, struct VFile* vf) {
 			gba->isPristine = false;
 			return false;
 #else
-			gba->memory.xgbaRom = vf->map(vf, gba->pristineRomSize, MAP_READ);
+			if (gba->pristineRomSize < GBA_SIZE_XGBA_ROM) {
+				void* mapped = vf->map(vf, gba->pristineRomSize, MAP_READ);
+				if (mapped) {
+					gba->memory.xgbaRom = anonymousMemoryMap(GBA_SIZE_XGBA_ROM);
+					if (gba->memory.xgbaRom) {
+						memcpy(gba->memory.xgbaRom, mapped, gba->pristineRomSize);
+						gba->memory.xgbaRomOwned = true;
+					}
+					vf->unmap(vf, mapped, gba->pristineRomSize);
+				}
+			} else {
+				gba->memory.xgbaRom = vf->map(vf, gba->pristineRomSize, MAP_READ);
+			}
 			if (!gba->memory.xgbaRom) {
 				mLOG(GBA, WARN, "Couldn't map XGBA extended ROM");
 				gba->romVf = NULL;
@@ -505,8 +522,13 @@ bool GBALoadROM(struct GBA* gba, struct VFile* vf) {
 	if (!gba->memory.rom) {
 #ifndef FIXED_ROM_BUFFER
 		if (gba->memory.xgbaRom) {
-			vf->unmap(vf, gba->memory.xgbaRom, gba->memory.xgbaRomSize);
+			if (gba->memory.xgbaRomOwned) {
+				mappedMemoryFree(gba->memory.xgbaRom, GBA_SIZE_XGBA_ROM);
+			} else {
+				vf->unmap(vf, gba->memory.xgbaRom, gba->memory.xgbaRomSize);
+			}
 			gba->memory.xgbaRom = NULL;
+			gba->memory.xgbaRomOwned = false;
 			gba->memory.xgbaRomSize = 0;
 		}
 #endif
