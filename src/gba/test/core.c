@@ -58,14 +58,14 @@ M_TEST_DEFINE(loadExtendedROM) {
 	uint8_t* image = anonymousMemoryMap(GBA_SIZE_XGBA_ROM);
 	assert_non_null(image);
 	memcpy(&image[0xB5], "XGBA256", 7);
-	image[GBA_SIZE_ROM0] = 0x42;
-	image[GBA_SIZE_ROM0 + 1] = 0x34;
-	image[GBA_SIZE_ROM0 + 2] = 0x56;
-	image[GBA_SIZE_ROM0 + 3] = 0x78;
-	image[GBA_SIZE_ROM0 + 4] = 0x01;
-	image[GBA_SIZE_ROM0 + 5] = 0x02;
-	image[GBA_SIZE_ROM0 + 6] = 0x03;
-	image[GBA_SIZE_ROM0 + 7] = 0x04;
+	image[GBA_SIZE_ROM0 + 0x200] = 0x42;
+	image[GBA_SIZE_ROM0 + 0x200 + 1] = 0x34;
+	image[GBA_SIZE_ROM0 + 0x200 + 2] = 0x56;
+	image[GBA_SIZE_ROM0 + 0x200 + 3] = 0x78;
+	image[GBA_SIZE_ROM0 + 0x200 + 4] = 0x01;
+	image[GBA_SIZE_ROM0 + 0x200 + 5] = 0x02;
+	image[GBA_SIZE_ROM0 + 0x200 + 6] = 0x03;
+	image[GBA_SIZE_ROM0 + 0x200 + 7] = 0x04;
 	image[GBA_SIZE_XGBA_ROM / 2] = 0x78;
 	image[GBA_SIZE_XGBA_ROM - 4] = 0x10;
 	image[GBA_SIZE_XGBA_ROM - 3] = 0x20;
@@ -81,7 +81,7 @@ M_TEST_DEFINE(loadExtendedROM) {
 	uint32_t crossBefore = 0xE3A07013;
 	uint32_t crossAfter = 0xE3A0801D;
 	memcpy(&image[GBA_SIZE_ROM0 - 4], &crossBefore, sizeof(crossBefore));
-	memcpy(&image[GBA_SIZE_ROM0], &crossAfter, sizeof(crossAfter));
+	memcpy(&image[GBA_SIZE_ROM0 + 0x200], &crossAfter, sizeof(crossAfter));
 
 	struct VFile* vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
 	assert_non_null(vf);
@@ -112,18 +112,18 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_ptr_equal(core->getMemoryBlock(core, GBA_REGION_XGBA_ROM, &blockSize), gba->memory.xgbaRom);
 	assert_int_equal(blockSize, GBA_SIZE_XGBA_ROM);
 
-	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x42);
-	assert_int_equal(GBAView8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0), 0x42);
-	assert_int_equal(GBAView16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0), 0x3442);
-	assert_int_equal(GBAView32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0), 0x78563442);
-	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x3442);
-	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x78563442);
-	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 1, NULL), 0x42000034);
-	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 1, NULL), 0x42785634);
-	uint32_t ldmEnd = GBALoadMultiple(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, 3, 0, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, NULL), 0x42);
+	assert_int_equal(GBAView8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200), 0x42);
+	assert_int_equal(GBAView16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200), 0x3442);
+	assert_int_equal(GBAView32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200), 0x78563442);
+	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, NULL), 0x3442);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, NULL), 0x78563442);
+	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200 + 1, NULL), 0x42000034);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200 + 1, NULL), 0x42785634);
+	uint32_t ldmEnd = GBALoadMultiple(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, 3, 0, NULL);
 	assert_int_equal(gba->cpu->gprs[0], 0x78563442);
 	assert_int_equal(gba->cpu->gprs[1], 0x04030201);
-	assert_int_equal(ldmEnd, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 8);
+	assert_int_equal(ldmEnd, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200 + 8);
 	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM / 2, NULL), 0x78);
 	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 2, NULL), 0xA530);
 	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 4, NULL), 0xA5302010);
@@ -161,7 +161,7 @@ M_TEST_DEFINE(loadExtendedROM) {
 	GBAAdjustWaitstates(gba, 0x001C);
 	int extendedCycles = 0;
 	int conventionalCycles = 0;
-	GBALoad32(cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, &extendedCycles);
+	GBALoad32(cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, &extendedCycles);
 	GBALoad32(cpu, GBA_BASE_ROM0 + 0x100, &conventionalCycles);
 	assert_int_equal(extendedCycles, conventionalCycles);
 	for (int region = GBA_REGION_XGBA_ROM; region < GBA_REGION_XGBA_ROM + 16; ++region) {
@@ -171,7 +171,7 @@ M_TEST_DEFINE(loadExtendedROM) {
 		assert_int_equal(gba->memory.waitstatesNonseq32[region], gba->memory.waitstatesNonseq32[GBA_REGION_ROM0]);
 	}
 
-	const uint32_t dmaSource = GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0;
+	const uint32_t dmaSource = GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200;
 	assert_int_equal(GBADMAWriteSAD(gba, 3, dmaSource), dmaSource);
 	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x100), GBA_BASE_EWRAM + 0x100);
 	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
