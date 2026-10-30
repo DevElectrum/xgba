@@ -1,6 +1,6 @@
 # XGBA P0: Extended ROM design and acceptance plan
 
-Status: P0.0 and P0.1 implemented and tested. P0.2 scalar and block-load reads are implemented and verified by CI; additional boundary, tool-integration, and emulator-compatibility testing remains. Instruction execution, DMA and end-to-end gameplay testing are not yet implemented.
+Status: P0.0–P0.3 implemented and tested for full-size 256 MiB images; P0.4 initial DMA and debugger memory integration implemented and tested. Savestate validation, legacy-game regression coverage and Emerald integration remain open.
 
 ## Purpose
 
@@ -41,23 +41,28 @@ Do not modify `DevElectrum/grand-anthology` during XGBA P0.
 - New unit tests load and unload a synthetic 256 MiB image, check legacy behavior for an unmarked 64 MiB image, and reject tagged images over 256 MiB. Linux CI also constructs a sparse 256 MiB file on disk and tests its actual VFile mapping, last-word CPU read and unload.
 - The test-inclusive CI run 41005025428 passed.
 
-### P0.2: CPU data access (in progress)
+### P0.2: CPU data access (implemented; extended regressions ongoing)
 
 - Bounded 8-, 16-, and 32-bit extended ROM loads were added to the CPU memory handlers, preserving legacy handling outside the opt-in address range.
 - The ARM LDM block-load path now supports extended ROM reads.
 - CI verifies the 32 MiB boundary, midpoint, last aligned word, unaligned load rotation, and block loads using CPU handlers. The scalar-read run 41005441475 and block-load run 41005565372 passed.
 - The real 256 MiB file-mapping test passed in run 41005662564.
-- Additional checks still needed for partial-size images, out-of-bounds reads, legacy mirrors, and hardware timing.
+- CI also verifies a tagged 64 MiB image, its last word, and a legacy/extended byte alias (run 41006766044). Additional checks remain for out-of-bounds reads, instruction fetch on partial-size images, and comprehensive compatibility.
 
-### P0.3: Instruction fetching
+### P0.3: Instruction fetching (implemented for full-size images)
 
-- Extend active instruction region selection and prefetch/timing paths.
-- Exercise ARM and Thumb code from the extended ROM with deterministic results.
+- Full-size (exactly 256 MiB) opt-in images can execute ARM and Thumb instructions directly from the `0x10000000..0x1FFFFFFF` range.
+- CI runs a real ARM instruction above the conventional 32 MiB limit and a Thumb instruction near the end of extended space; run 41006152418 passed.
+- Partial-size opt-in ROMs are currently supported as *data* only, because direct instruction prefetch needs a full mapped backing or a safe padded mapping. This limitation should be resolved before calling generalized extended-ROM execution complete.
+- Cross-boundary sequential prefetch and precise cycle behavior still require dedicated tests.
 
-### P0.4: Integration and regressions
+### P0.4: Integration and regressions (partially implemented)
 
-- Address DMA support, debugger/core memory blocks, resets, savestate correctness, and existing cartridge behavior.
-- Run automated old-ROM and extended-ROM tests separately.
+- DMA1–DMA3 source-address handling preserves the expanded address rather than applying original 28-bit masks. DMA0 retains its legacy limitation.
+- Extended-ROM regions adopt original ROM0 waitstate timings when WAITCNT changes.
+- A CI test runs real DMA3 events and verifies 32-bit and 16-bit transfers into EWRAM (run 41006481250 passed).
+- Core debugger memory-block listings expose extended ROM only when a tagged image is loaded, and `getMemoryBlock` returns its mapping (run 41006766044 passed).
+- **Still open:** savestate roundtrip tests, ROM patch/cheat alias consistency, accurate timing validation, broader legacy-game compatibility, and full-size/short-size boundary safety cases.
 
 ### P0.5: Integration ROM and developer release
 
