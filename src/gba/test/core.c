@@ -165,6 +165,10 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_null(gba->memory.rom);
 	assert_null(gba->memory.xgbaRom);
 	assert_int_equal(gba->memory.xgbaRomSize, 0);
+	blockCount = core->listMemoryBlocks(core, &blocks);
+	for (size_t i = 0; i < blockCount; ++i) {
+		assert_true(blocks[i].id != GBA_REGION_XGBA_ROM);
+	}
 	core->deinit(core);
 	mappedMemoryFree(image, GBA_SIZE_XGBA_ROM);
 }
