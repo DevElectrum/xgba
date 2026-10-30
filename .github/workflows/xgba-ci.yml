@@ -52,11 +52,16 @@ jobs:
             exit 1
           fi
 
-      - name: Generate standalone 256 MiB test cartridge
-        run: python3 tools/xgba_generate_test_rom.py build-xgba/xgba-integration.gba
+      - name: Generate extended and legacy test cartridges
+        run: |
+          python3 tools/xgba_generate_test_rom.py build-xgba/xgba-integration.gba
+          python3 tools/xgba_generate_test_rom.py --legacy build-xgba/legacy-integration.gba
 
       - name: Run baseline and integration tests
-        run: XGBA_TEST_ROM="$PWD/build-xgba/xgba-integration.gba" ctest --test-dir build-xgba --output-on-failure
+        env:
+          XGBA_TEST_ROM: ${{ github.workspace }}/build-xgba/xgba-integration.gba
+          XGBA_LEGACY_ROM: ${{ github.workspace }}/build-xgba/legacy-integration.gba
+        run: ctest --test-dir build-xgba --output-on-failure
 
       - name: Verify headless emulator exists
         run: test -x build-xgba/mgba-headless
