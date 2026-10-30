@@ -1,6 +1,6 @@
 # XGBA P0: Extended ROM design and acceptance plan
 
-Status: P0.0 and P0.1 implemented and tested; P0.2 CPU data-read implementation added, pending its exact-head CI result. Instruction execution, DMA and end-to-end testing are not yet implemented.
+Status: P0.0 and P0.1 implemented and tested. P0.2 scalar and block-load reads are implemented and verified by CI; additional boundary, tool-integration, and emulator-compatibility testing remains. Instruction execution, DMA and end-to-end gameplay testing are not yet implemented.
 
 ## Purpose
 
@@ -38,14 +38,16 @@ Do not modify `DevElectrum/grand-anthology` during XGBA P0.
 ### P0.1: Loader (complete)
 
 - Extended backing, safe unloading and 32 MiB legacy mapping are implemented.
-- New unit tests load and unload a synthetic 256 MiB image, check legacy behavior for an unmarked 64 MiB image, and reject tagged images over 256 MiB.
+- New unit tests load and unload a synthetic 256 MiB image, check legacy behavior for an unmarked 64 MiB image, and reject tagged images over 256 MiB. Linux CI also constructs a sparse 256 MiB file on disk and tests its actual VFile mapping, last-word CPU read and unload.
 - The test-inclusive CI run 41005025428 passed.
 
 ### P0.2: CPU data access (in progress)
 
 - Bounded 8-, 16-, and 32-bit extended ROM loads were added to the CPU memory handlers, preserving legacy handling outside the opt-in address range.
-- Added checks for the 32 MiB boundary, midpoint, and last aligned word using CPU load handlers.
-- Additional checks still needed for unaligned loads, short images, out-of-bounds reads, legacy mirrors, and hardware timing.
+- The ARM LDM block-load path now supports extended ROM reads.
+- CI verifies the 32 MiB boundary, midpoint, last aligned word, unaligned load rotation, and block loads using CPU handlers. The scalar-read run 41005441475 and block-load run 41005565372 passed.
+- The real 256 MiB file-mapping test passed in run 41005662564.
+- Additional checks still needed for partial-size images, out-of-bounds reads, legacy mirrors, and hardware timing.
 
 ### P0.3: Instruction fetching
 
