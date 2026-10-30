@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - xgba/p0-foundation
+      - xgba/p0-validation-20261030
   pull_request:
     branches:
       - master
