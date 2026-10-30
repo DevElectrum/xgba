@@ -1,6 +1,6 @@
 # XGBA P0: Extended ROM design and acceptance plan
 
-Status: P0.0–P0.3 implemented and tested for full-size 256 MiB images; P0.4 initial DMA and debugger memory integration implemented and tested. Savestate validation, legacy-game regression coverage and Emerald integration remain open.
+Status: P0.0–P0.3 implemented and tested; P0.4 DMA/debugger integration tested; P0.5 standalone synthetic GBA cartridge generated and successfully executed by CI. Full Emerald/Hoenn integration, savestate tests and broad compatibility validation remain open.
 
 ## Purpose
 
@@ -64,10 +64,11 @@ Do not modify `DevElectrum/grand-anthology` during XGBA P0.
 - Core debugger memory-block listings expose extended ROM only when a tagged image is loaded, and `getMemoryBlock` returns its mapping (run 41006766044 passed).
 - **Still open:** savestate roundtrip tests, ROM patch/cheat alias consistency, accurate timing validation, broader legacy-game compatibility, and full-size/short-size boundary safety cases.
 
-### P0.5: Integration ROM and developer release
+### P0.5: Integration ROM and developer release (synthetic cartridge complete)
 
-- Build a standalone, synthetic, redistribution-safe 256 MiB GBA test ROM at CI runtime.
-- Create a separate Emerald-based integration project, with independent map references and a region-switching hub, using clean source assets and legally supplied build inputs.
+- CI builds a standalone, synthetic, redistribution-safe 256 MiB GBA cartridge using `tools/xgba_generate_test_rom.py`.
+- The cartridge contains an ARM bootstrap at the normal GBA entry address, which reads a value at virtual address `0x1FFFFF00` and stores it to EWRAM. The `generatedExtendedProgram` unit test loads the ROM and executes its real guest instructions, checking the result; run 41007160209 passed.
+- A separate Emerald-based integration project remains to be built, with independent map references and a region-switching hub, using clean source assets and legally supplied build inputs.
 - Start with one cloned area and incrementally reach the **Twenty Hoenns** scenario.
 - Hoenn clones should use independently stored map/layout data when measuring storage; shared graphics alone do not consume new ROM bytes.
 - Where necessary, add deterministic non-game data to exercise the entire 256 MiB range.
