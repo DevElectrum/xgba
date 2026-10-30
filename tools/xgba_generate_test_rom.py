@@ -3,12 +3,12 @@ from pathlib import Path
 import struct
 import sys
 
-if len(sys.argv) == 2:
-    legacy = False
-elif len(sys.argv) == 3 and sys.argv[1] == "--legacy":
-    legacy = True
-else:
-    raise SystemExit("Usage: xgba_generate_test_rom.py [--legacy] OUTPUT.gba")
+options = sys.argv[1:-1]
+if len(sys.argv) < 2 or any(option not in ("--legacy", "--headless") for option in options):
+    raise SystemExit("Usage: xgba_generate_test_rom.py [--legacy] [--headless] OUTPUT.gba")
+
+legacy = "--legacy" in options
+headless = "--headless" in options
 
 ROM_SIZE = 16 * 1024 * 1024 if legacy else 256 * 1024 * 1024
 EXTENDED_TEST_OFFSET = ROM_SIZE - 0x100
@@ -32,7 +32,7 @@ with path.open("wb") as rom:
     rom.seek(0)
     rom.write(header)
     rom.seek(0xC0)
-    for instruction in (0xE59F0014, 0xE5901000, 0xE59F2010, 0xE5821000, 0xEAFFFFFE):
+    for instruction in (0xE59F0014, 0xE5901000, 0xE59F2010, 0xE5821000, 0xEF000003 if headless else 0xEAFFFFFE):
         rom.write(struct.pack("<I", instruction))
     rom.seek(0xDC)
     rom.write(struct.pack("<I", (0x08000000 if legacy else 0x10000000) + EXTENDED_TEST_OFFSET))
