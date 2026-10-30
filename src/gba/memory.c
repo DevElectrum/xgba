@@ -292,7 +292,11 @@ static void GBASetActiveRegion(struct ARMCore* cpu, uint32_t address) {
 		} else {
 			cpu->memory.activeMask &= -WORD_SIZE_ARM;
 		}
-		if (newRegion < GBA_REGION_ROM0 || (address & (GBA_SIZE_ROM0 - 1)) < memory->romSize) {
+		if (address >= GBA_BASE_XGBA_ROM && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+			if (memory->xgbaRom && memory->xgbaRomSize == GBA_SIZE_XGBA_ROM) {
+				return;
+			}
+		} else if (newRegion < GBA_REGION_ROM0 || (address & (GBA_SIZE_ROM0 - 1)) < memory->romSize) {
 			return;
 		}
 	}
@@ -301,6 +305,18 @@ static void GBASetActiveRegion(struct ARMCore* cpu, uint32_t address) {
 		memory->biosPrefetch = cpu->prefetch[1];
 	}
 	memory->activeRegion = newRegion;
+	if (address >= GBA_BASE_XGBA_ROM && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM
+	    && memory->xgbaRom && memory->xgbaRomSize == GBA_SIZE_XGBA_ROM) {
+		cpu->memory.accessSource = mACCESS_PROGRAM;
+		cpu->memory.activeRegion = (uint32_t*) memory->xgbaRom;
+		cpu->memory.activeMask = GBA_SIZE_XGBA_ROM - 1;
+		cpu->memory.activeSeqCycles32 = memory->waitstatesSeq32[GBA_REGION_ROM0];
+		cpu->memory.activeSeqCycles16 = memory->waitstatesSeq16[GBA_REGION_ROM0];
+		cpu->memory.activeNonseqCycles32 = memory->waitstatesNonseq32[GBA_REGION_ROM0];
+		cpu->memory.activeNonseqCycles16 = memory->waitstatesNonseq16[GBA_REGION_ROM0];
+		cpu->memory.activeMask &= -(cpu->cpsr.t ? WORD_SIZE_THUMB : WORD_SIZE_ARM);
+		return;
+	}
 	switch (newRegion) {
 	case GBA_REGION_BIOS:
 		cpu->memory.accessSource = mACCESS_SYSTEM;
