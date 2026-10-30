@@ -220,6 +220,7 @@ struct GBACore {
 	struct mCoreMemoryBlock memoryBlocks[13];
 	size_t nMemoryBlocks;
 	int memoryBlockType;
+	bool memoryBlockIsXgba;
 };
 
 #define _MAX(A, B) ((A > B) ? (A) : (B))
@@ -1112,7 +1113,8 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 	const struct GBA* gba = core->board;
 	struct GBACore* gbacore = (struct GBACore*) core;
 
-	if (gbacore->memoryBlockType != gba->memory.savedata.type) {
+	if (gbacore->memoryBlockType != gba->memory.savedata.type
+	    || gbacore->memoryBlockIsXgba != (gba->memory.xgbaRom != NULL)) {
 		switch (gba->memory.savedata.type) {
 		case GBA_SAVEDATA_SRAM:
 			memcpy(gbacore->memoryBlocks, _GBAMemoryBlocksSRAM, sizeof(_GBAMemoryBlocksSRAM));
@@ -1161,6 +1163,7 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 			gbacore->memoryBlocks[0].size = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM;
 		}
 		gbacore->memoryBlockType = gba->memory.savedata.type;
+		gbacore->memoryBlockIsXgba = gba->memory.xgbaRom != NULL;
 
 		mCALLBACKS_INVOKE(gba, memoryBlocksChanged);
 	}
