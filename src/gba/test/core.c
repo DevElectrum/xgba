@@ -92,7 +92,7 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_int_equal(gba->memory.romMask, GBA_SIZE_ROM0 - 1);
 	assert_int_equal(gba->memory.xgbaRomSize, GBA_SIZE_XGBA_ROM);
 	assert_non_null(gba->memory.xgbaRom);
-	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_ROM0], 0x42);
+	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_ROM0 + 0x200], 0x42);
 	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM / 2], 0x78);
 	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM - 1], 0xA5);
 
