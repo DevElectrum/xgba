@@ -129,7 +129,9 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x100), GBA_BASE_EWRAM + 0x100);
 	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
 	GBADMAWriteCNT_HI(gba, 3, 0x8400);
-	mTimingTick(&gba->timing, 200);
+	for (int i = 0; i < 4; ++i) {
+		mTimingTick(&gba->timing, 200);
+	}
 	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0x78563442);
 	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x104, NULL), 0x04030201);
 
@@ -137,7 +139,9 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x110), GBA_BASE_EWRAM + 0x110);
 	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
 	GBADMAWriteCNT_HI(gba, 3, 0x8000);
-	mTimingTick(&gba->timing, 200);
+	for (int i = 0; i < 4; ++i) {
+		mTimingTick(&gba->timing, 200);
+	}
 	assert_int_equal(GBALoad16(cpu, GBA_BASE_EWRAM + 0x110, NULL), 0x3442);
 	assert_int_equal(GBALoad16(cpu, GBA_BASE_EWRAM + 0x112, NULL), 0x7856);
 
