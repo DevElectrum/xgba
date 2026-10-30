@@ -2,6 +2,14 @@
 
 Updated: 2026-10-30
 
+## User-verified and GUI preference (2026-10-30)
+
+- **USER CONFIRMED**: Tab fast-forward now works in the SDL XGBA build from the `xgba/p1-fast-forward` branch, with the 64 MiB Emerald ROM. This clears the user-facing SDL turbo acceptance gate, although there is no measured benchmark.
+- User also expects the **full mGBA menu-driven desktop GUI**, not the minimal SDL game window. Explain that prior build explicitly set `BUILD_QT=OFF`, then guided them to launch `build-xgba/sdl/mgba`. The menu frontend is Qt, built from the *same* XGBA core by enabling `BUILD_QT=ON` and providing Qt development libraries. **Do not confuse this with losing mGBA functionality or delete working SDL turbo.**
+- Qt build and its menu/input/fast-forward behavior **have not yet been verified** on Nyx. Prefer building both SDL and Qt and explicitly checking hold-Tab turbo in Qt as well; Qt has its own hotkey/settings code, not necessarily the SDL Tab handler.
+- Expected Qt executable: `build-xgba/qt/mgba-qt` (verify actual build output). CMake Qt frontend requires Qt Widgets/Network, with Qt Multimedia or SDL audio; Qt6 also needs OpenGL + OpenGLWidgets packages.
+- Next: guide user through Qt dependencies / reconfigure while retaining SDL and its working turbo; keep living handoff current.
+
 ## State and repositories
 
 - Emulator `DevElectrum/xgba`, `master` remains untouched.
