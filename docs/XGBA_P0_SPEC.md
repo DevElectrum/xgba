@@ -1,6 +1,6 @@
 # XGBA P0: Extended ROM design and acceptance plan
 
-Status: P0.0–P0.3 implemented and tested; P0.4 DMA/debugger integration tested; P0.5 standalone synthetic GBA cartridge generated and successfully executed by CI. Full Emerald/Hoenn integration, savestate tests and broad compatibility validation remain open.
+Status: P0.0–P0.3 implemented and tested; P0.4 DMA/debugger integration and savestate restoration tested; P0.5 includes both expanded (256 MiB) and ordinary (16 MiB) executable cartridges, plus 20 distributed ROM probe records. Full Emerald/Hoenn gameplay integration and broader compatibility validation remain open.
 
 ## Purpose
 
@@ -62,12 +62,14 @@ Do not modify `DevElectrum/grand-anthology` during XGBA P0.
 - Extended-ROM regions adopt original ROM0 waitstate timings when WAITCNT changes.
 - A CI test runs real DMA3 events and verifies 32-bit and 16-bit transfers into EWRAM (run 41006481250 passed).
 - Core debugger memory-block listings expose extended ROM only when a tagged image is loaded, and `getMemoryBlock` returns its mapping (run 41006766044 passed).
-- **Still open:** savestate roundtrip tests, ROM patch/cheat alias consistency, accurate timing validation, broader legacy-game compatibility, and full-size/short-size boundary safety cases.
+- **Still open:** ROM patch/cheat alias consistency, accurate timing validation, broader legacy-game compatibility, and full-size/short-size boundary safety cases. A basic extended-ROM savestate roundtrip now passes.
 
 ### P0.5: Integration ROM and developer release (synthetic cartridge complete)
 
-- CI builds a standalone, synthetic, redistribution-safe 256 MiB GBA cartridge using `tools/xgba_generate_test_rom.py`.
-- The cartridge contains an ARM bootstrap at the normal GBA entry address, which reads a value at virtual address `0x1FFFFF00` and stores it to EWRAM. The `generatedExtendedProgram` unit test loads the ROM and executes its real guest instructions, checking the result; run 41007160209 passed.
+- CI generates two copyright-free cartridges with `tools/xgba_generate_test_rom.py`: a 16 MiB legacy cartridge (`--legacy`) and a 256 MiB tagged XGBA cartridge.
+- Both cartridges run a real guest ARM program starting at the conventional cartridge entry point, reading data from their respective ROM ranges and storing the result to EWRAM. The paired legacy and extended regression suite passed in run 41007971184.
+- The extended cartridge can save state while executing instructions near the end of the 256 MiB range, restore EWRAM and CPU state, and resume ARM instructions (run 41007814854).
+- A second guest ARM routine reads 20 records spaced across the extended 256 MiB image, sums their values and writes the checksum to EWRAM. CI verified the checksum in run 41008162819. These are synthetic distributed region records, **not cloned Hoenn maps**.
 - A separate Emerald-based integration project remains to be built, with independent map references and a region-switching hub, using clean source assets and legally supplied build inputs.
 - Start with one cloned area and incrementally reach the **Twenty Hoenns** scenario.
 - Hoenn clones should use independently stored map/layout data when measuring storage; shared graphics alone do not consume new ROM bytes.
