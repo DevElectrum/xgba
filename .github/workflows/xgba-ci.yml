@@ -6,10 +6,12 @@ on:
       - master
       - xgba/p0-foundation
       - xgba/p0-validation-20261030
+      - xgba/p1-fast-forward
   pull_request:
     branches:
       - master
       - xgba/p0-foundation
+      - xgba/p0-validation-20261030
   workflow_dispatch:
 
 permissions:
@@ -59,6 +61,9 @@ jobs:
         run: |
           python3 tools/xgba_generate_test_rom.py build-xgba/xgba-integration.gba
           python3 tools/xgba_generate_test_rom.py --legacy build-xgba/legacy-integration.gba
+
+      - name: Verify mandatory SDL fast-forward behavior
+        run: python3 tools/xgba_check_fast_forward.py
 
       - name: Run baseline and integration tests
         env:
