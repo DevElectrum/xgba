@@ -26,7 +26,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build pkg-config libcmocka-dev zlib1g-dev
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config libcmocka-dev zlib1g-dev libsdl2-dev
 
       - name: Configure headless GBA build
         run: |
@@ -35,7 +35,8 @@ jobs:
             -DM_CORE_GBA=ON \
             -DM_CORE_GB=OFF \
             -DBUILD_QT=OFF \
-            -DBUILD_SDL=OFF \
+            -DBUILD_SDL=ON \
+            -DSDL_VERSION=2 \
             -DBUILD_HEADLESS=ON \
             -DBUILD_SUITE=ON \
             -DENABLE_SCRIPTING=OFF \
@@ -65,6 +66,8 @@ jobs:
           XGBA_LEGACY_ROM: ${{ github.workspace }}/build-xgba/legacy-integration.gba
         run: ctest --test-dir build-xgba --output-on-failure
 
-      - name: Verify headless emulator exists
-        run: test -x build-xgba/mgba-headless
+      - name: Verify headless and SDL desktop emulator builds
+        run: |
+          test -x build-xgba/mgba-headless
+          test -x build-xgba/mgba-sdl
 
