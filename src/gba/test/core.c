@@ -92,6 +92,22 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM / 2], 0x78);
 	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM - 1], 0xA5);
 
+	const struct mCoreMemoryBlock* blocks;
+	size_t blockCount = core->listMemoryBlocks(core, &blocks);
+	bool foundExtended = false;
+	for (size_t i = 0; i < blockCount; ++i) {
+		if (blocks[i].id == GBA_REGION_XGBA_ROM) {
+			assert_int_equal(blocks[i].start, GBA_BASE_XGBA_ROM);
+			assert_int_equal(blocks[i].end, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM);
+			assert_int_equal(blocks[i].size, GBA_SIZE_XGBA_ROM);
+			foundExtended = true;
+		}
+	}
+	assert_true(foundExtended);
+	size_t blockSize = 0;
+	assert_ptr_equal(core->getMemoryBlock(core, GBA_REGION_XGBA_ROM, &blockSize), gba->memory.xgbaRom);
+	assert_int_equal(blockSize, GBA_SIZE_XGBA_ROM);
+
 	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x42);
 	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x3442);
 	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x78563442);
