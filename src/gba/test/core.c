@@ -270,12 +270,24 @@ M_TEST_DEFINE(partialExtendedROM) {
 	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + size - 0x80;
 	ThumbWritePC(cpu);
 	assert_int_equal(cpu->prefetch[0], thumbOp);
+	void* savedState = calloc(1, core->stateSize(core));
+	assert_non_null(savedState);
+	assert_true(core->saveState(core, savedState));
+	cpu->gprs[6] = 0xDEAD;
+	assert_true(core->loadState(core, savedState));
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
 	cpu->nextEvent = INT_MAX;
 	ARMRun(cpu);
 	assert_int_equal(cpu->gprs[6], 90);
+	free(savedState);
+
 	GBALoad32(cpu, GBA_BASE_XGBA_ROM + size, NULL);
 	GBALoad16(cpu, GBA_BASE_XGBA_ROM + size, NULL);
 	GBALoad8(cpu, GBA_BASE_XGBA_ROM + size, NULL);
+	gba->hardCrash = false;
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + size + 0x100;
+	ThumbWritePC(cpu);
+	assert_int_equal(gba->memory.activeRegion, -1);
 
 	core->unloadROM(core);
 	core->deinit(core);
