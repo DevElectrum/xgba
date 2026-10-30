@@ -43,4 +43,24 @@ with path.open("wb") as rom:
         rom.seek(EXTENDED_TEST_OFFSET + 0x10)
         rom.write(struct.pack("<II", 0xE3A0307B, 0xEAFFFFFE))
 
+        rom.seek(0x140)
+        probe = (
+            0xE59F0028, 0xE3A01014, 0xE3A02000, 0xE4903004,
+            0xE5934000, 0xE0822004, 0xE2511001, 0x1AFFFFFA,
+            0xE59F500C, 0xE5852000, 0xEAFFFFFE, 0xE1A00000,
+            0x08000200, 0x02000104,
+        )
+        for instruction in probe:
+            rom.write(struct.pack("<I", instruction))
+
+        start = 32 * 1024 * 1024 + 0x1000
+        step = ((ROM_SIZE - 0x1000 - start) // 19) & ~3
+        for i in range(20):
+            offset = start + i * step
+            value = 0x12340000 + i * 0x10201
+            rom.seek(0x200 + 4 * i)
+            rom.write(struct.pack("<I", 0x10000000 + offset))
+            rom.seek(offset)
+            rom.write(struct.pack("<I", value))
+
 print(f"Created {path}: {ROM_SIZE} bytes; test data at 0x{EXTENDED_TEST_OFFSET:08X}")
