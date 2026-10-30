@@ -1,6 +1,6 @@
 # XGBA P0: Extended ROM design and acceptance plan
 
-Status: P0.0–P0.3 implemented and tested; P0.4 DMA/debugger integration and savestate restoration tested; P0.5 includes both expanded (256 MiB) and ordinary (16 MiB) executable cartridges, plus 20 distributed ROM probe records. Full Emerald/Hoenn gameplay integration and broader compatibility validation remain open.
+Status: Synthetic P0 core validation passed on the validation branch, including partial tagged ROM execution, memory views, waitstate comparisons and SDL compilation. Full Emerald/Hoenn gameplay integration and broader compatibility remain open. See [2026-10-30 validation report](XGBA_P0_VALIDATION_2026-10-30.md) and [CI run #90](https://github.com/DevElectrum/xgba/actions/runs/41014731546).
 
 ## Purpose
 
@@ -47,22 +47,22 @@ Do not modify `DevElectrum/grand-anthology` during XGBA P0.
 - The ARM LDM block-load path now supports extended ROM reads.
 - CI verifies the 32 MiB boundary, midpoint, last aligned word, unaligned load rotation, and block loads using CPU handlers. The scalar-read run 41005441475 and block-load run 41005565372 passed.
 - The real 256 MiB file-mapping test passed in run 41005662564.
-- CI also verifies a tagged 64 MiB image, its last word, and a legacy/extended byte alias (run 41006766044). Additional checks remain for out-of-bounds reads, instruction fetch on partial-size images, and comprehensive compatibility.
+- CI also verifies a tagged 64 MiB image, its last word, and a legacy/extended byte alias (run 41006766044). Scalar out-of-bounds reads and partial-size CPU execution were additionally exercised on the validation branch. Comprehensive real-game compatibility remains unverified.
 
-### P0.3: Instruction fetching (implemented for full-size images)
+### P0.3: Instruction fetching (full-size and partial tagged images validated)
 
 - Full-size (exactly 256 MiB) opt-in images can execute ARM and Thumb instructions directly from the `0x10000000..0x1FFFFFFF` range.
 - CI runs a real ARM instruction above the conventional 32 MiB limit and a Thumb instruction near the end of extended space; run 41006152418 passed.
-- Partial-size opt-in ROMs are currently supported as *data* only, because direct instruction prefetch needs a full mapped backing or a safe padded mapping. This limitation should be resolved before calling generalized extended-ROM execution complete.
-- Cross-boundary sequential prefetch and precise cycle behavior still require dedicated tests.
+- The validation branch implements a safe padded CPU backing for partial-size opt-in ROMs, with a 64 MiB ARM/Thumb execution and savestate regression. Explicit jumps beyond the loaded length are rejected. Sequential execution into the padded tail needs additional semantic validation.
+- Sequential ARM instruction prefetch across 32 MiB and ROM0-equivalent data-read waitstate comparisons now pass; deeper timing, prefetch and boundary regressions are still appropriate.
 
 ### P0.4: Integration and regressions (partially implemented)
 
 - DMA1–DMA3 source-address handling preserves the expanded address rather than applying original 28-bit masks. DMA0 retains its legacy limitation.
 - Extended-ROM regions adopt original ROM0 waitstate timings when WAITCNT changes.
-- A CI test runs real DMA3 events and verifies 32-bit and 16-bit transfers into EWRAM (run 41006481250 passed).
+- CI runs real DMA3 events for 32-bit and 16-bit transfers into EWRAM (run 41006481250) and validation-branch DMA1/DMA2 32-bit transfers (run 41014731546).
 - Core debugger memory-block listings expose extended ROM only when a tagged image is loaded, and `getMemoryBlock` returns its mapping (run 41006766044 passed).
-- **Still open:** ROM patch/cheat alias consistency, accurate timing validation, broader legacy-game compatibility, and full-size/short-size boundary safety cases. A basic extended-ROM savestate roundtrip now passes.
+- **Still open:** ROM patch/cheat alias consistency, broader real-game compatibility, accurate cycle timing and sequential fetch beyond partial-ROM EOF. Basic full-size and partial-size extended-ROM savestate roundtrips pass.
 
 ### P0.5: Integration ROM and developer release (synthetic cartridge complete)
 
