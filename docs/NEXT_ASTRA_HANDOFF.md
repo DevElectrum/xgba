@@ -2,6 +2,20 @@
 
 Updated: 2026-10-30
 
+## E5 opt-in expanded save bridge started (2026-10-30)
+
+- User completed E4 world-independent event prototype, World 20 persisted 3/SET and World 3 persisted 1/SET across normal game save and emulator exit/restart. User requested to start E5 and went to bed; **do not ask for tests until E5 in-game API is ready**.
+- E5 emulator experimental branch: `xgba/e5-save-expansion` from accepted `xgba/p1-fast-forward`, draft [PR #4](https://github.com/DevElectrum/xgba/pull/4). E5 game branch `DevElectrum/xgba-emerald-test@xgba/e5-expanded-save`, draft [PR #6](https://github.com/DevElectrum/xgba-emerald-test/pull/6). Never touch `DevElectrum/grand-anthology`.
+- Fully validated native save-sector audit: every sector in Emerald's 128 KiB / 32-sector flash is occupied: main save slots 0-27, Hall of Fame 28-29, Trainer Hill 30, recorded battle 31. E5 must not steal any native sector or enlarge the native SaveBlock1.
+- E5 ROM requires existing `XGBA256` 0xB5..0xBB tag, revision byte `0xBC = 0xE5` and corrected GBA checksum. This prevents E4 ROMs from activating the storage bridge.
+- Emulator `src/gba/savedata.c` now maps `1 MiB` for Flash1M when a tagged E5 ROM AND an already initialized 1 MiB save with `XGBAE5S\0` superblock at file offset 0x20000 are present. If save is short or uninitialized, it refuses extended mapping and keeps standard flash; it will not truncate/move an old E4 save or its RTC metadata. The standard flash commands remain unchanged at 0x0E and bank 0/1 of original 128KiB.
+- Emulator `src/gba/memory.c` maps CPU addresses `0x0F000000..0x0F0DFFFF` as a linear 896 KiB persistent extension corresponding to appended `.sav` offsets `0x20000..0xFFFFF`. E5-only writes mark savedata dirty so mGBA's regular sync writes them. Out-of-range addresses in 0x0F return FF/drop writes in E5 mode. For non-E5 ROMs, 0x0F remains normal SRAM mirror. Direct byte read/write path is prototype; no user runtime test yet.
+- mGBA's normal RTC may append a 16-byte trailer after all mapped save bytes. An E5 save can be `1 MiB + 16 bytes`; `GBASavedataRTCRead/Write` uses the expanded size and retains the trailer at the new end. Corresponding host-format tool migrates 128 KiB (+ optional 16 B RTC) into E5 format without mutating the original.
+- **CI PASSED**: [E5 emulator build Actions #41041284439](https://github.com/DevElectrum/xgba/actions/runs/41041284439) compiled the full headless/SDL GBA build and ran inherited emulator tests, including fast-forward regression. This validates compilation and existing tests, **not yet new 0x0F persistence behavior in a running game**.
+- **Companion game CI PASSED**: [E5 ROM Actions #41041353411](https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41041353411) compiled 64 MiB E5-marked Emerald and checked revision and checksum, alongside offline-format tests. Preserve accepted E3/E4 ROM and save copies.
+- Next: game-side E5 header/feature probe and safe world-bank read/write protocol, plus integration test proving 0x0F writes persist across normal in-game save / XGBA exit / reload. Add automated emulator test of 0x0F region if feasible. Avoid falsely declaring E5 accepted before those tests.
+
+
 ## User-verified and GUI preference (2026-10-30)
 
 - **USER CONFIRMED**: Tab fast-forward now works in the SDL XGBA build from the `xgba/p1-fast-forward` branch, with the 64 MiB Emerald ROM. This clears the user-facing SDL turbo acceptance gate, although there is no measured benchmark.
