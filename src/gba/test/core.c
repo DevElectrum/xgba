@@ -8,6 +8,7 @@
 #include <mgba/core/core.h>
 #include <mgba/gba/core.h>
 #include <mgba/internal/gba/gba.h>
+#include <mgba/internal/arm/isa-inlines.h>
 #include <mgba-util/memory.h>
 #include <mgba-util/vfs.h>
 
@@ -69,6 +70,13 @@ M_TEST_DEFINE(loadExtendedROM) {
 	image[GBA_SIZE_XGBA_ROM - 2] = 0x30;
 	image[GBA_SIZE_XGBA_ROM - 1] = 0xA5;
 
+	const size_t armOffset = GBA_SIZE_ROM0 + 0x100;
+	const size_t thumbOffset = GBA_SIZE_XGBA_ROM - 0x100;
+	uint32_t armOp = 0xE3A0002A;
+	uint16_t thumbOp = 0x2135;
+	memcpy(&image[armOffset], &armOp, sizeof(armOp));
+	memcpy(&image[thumbOffset], &thumbOp, sizeof(thumbOp));
+
 	struct VFile* vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
 	assert_non_null(vf);
 	assert_true(core->loadROM(core, vf));
@@ -95,6 +103,24 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 2, NULL), 0xA530);
 	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 4, NULL), 0xA5302010);
 	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 1, NULL), 0xA5);
+
+	struct ARMCore* cpu = gba->cpu;
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + armOffset;
+	ARMWritePC(cpu);
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
+	assert_int_equal(cpu->prefetch[0], armOp);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[0], 42);
+
+	_ARMSetMode(cpu, MODE_THUMB);
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + thumbOffset;
+	ThumbWritePC(cpu);
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
+	assert_int_equal(cpu->prefetch[0], thumbOp);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[1], 53);
 
 	core->unloadROM(core);
 	assert_null(gba->memory.rom);
