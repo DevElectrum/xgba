@@ -25,10 +25,11 @@ bool mSDLSWInit(struct mSDLRenderer* renderer) {
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 	renderer->window = SDL_CreateWindow(projectName, renderer->viewportWidth, renderer->viewportHeight, SDL_WINDOW_FULLSCREEN * renderer->player.fullscreen);
 	renderer->sdlRenderer = SDL_CreateRenderer(renderer->window, NULL);
-	SDL_SetRenderVSync(renderer->sdlRenderer, 1);
+	// Audio synchronization controls normal speed. VSync must not cap fast-forward.
+	SDL_SetRenderVSync(renderer->sdlRenderer, 0);
 #else
 	renderer->window = SDL_CreateWindow(projectName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, renderer->viewportWidth, renderer->viewportHeight, SDL_WINDOW_FULLSCREEN_DESKTOP * renderer->player.fullscreen);
-	renderer->sdlRenderer = SDL_CreateRenderer(renderer->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	renderer->sdlRenderer = SDL_CreateRenderer(renderer->window, -1, SDL_RENDERER_ACCELERATED);
 #endif
 	SDL_GetWindowSize(renderer->window, &renderer->viewportWidth, &renderer->viewportHeight);
 	renderer->player.window = renderer->window;
