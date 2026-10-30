@@ -303,21 +303,21 @@ M_TEST_DEFINE(generatedExtendedProgram) {
 	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 0xF0;
 	ARMWritePC(cpu);
 	assert_int_equal(cpu->prefetch[0], 0xE3A0307B);
-	void* state = calloc(1, core->stateSize(core));
-	assert_non_null(state);
-	assert_true(core->saveState(core, state));
+	void* savedState = calloc(1, core->stateSize(core));
+	assert_non_null(savedState);
+	assert_true(core->saveState(core, savedState));
 
 	cpu->gprs[3] = 0xBAD;
 	cpu->gprs[ARM_PC] = GBA_BASE_ROM0;
 	memset((uint8_t*) gba->memory.wram + 0x100, 0, 4);
-	assert_true(core->loadState(core, state));
+	assert_true(core->loadState(core, savedState));
 	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
 	assert_int_equal(cpu->prefetch[0], 0xE3A0307B);
 	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0xC0FFEE42);
 	cpu->nextEvent = INT_MAX;
 	ARMRun(cpu);
 	assert_int_equal(cpu->gprs[3], 123);
-	free(state);
+	free(savedState);
 
 	core->unloadROM(core);
 	core->deinit(core);
