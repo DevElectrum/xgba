@@ -56,7 +56,13 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_non_null(image);
 	memcpy(&image[0xB5], "XGBA256", 7);
 	image[GBA_SIZE_ROM0] = 0x42;
+	image[GBA_SIZE_ROM0 + 1] = 0x34;
+	image[GBA_SIZE_ROM0 + 2] = 0x56;
+	image[GBA_SIZE_ROM0 + 3] = 0x78;
 	image[GBA_SIZE_XGBA_ROM / 2] = 0x78;
+	image[GBA_SIZE_XGBA_ROM - 4] = 0x10;
+	image[GBA_SIZE_XGBA_ROM - 3] = 0x20;
+	image[GBA_SIZE_XGBA_ROM - 2] = 0x30;
 	image[GBA_SIZE_XGBA_ROM - 1] = 0xA5;
 
 	struct VFile* vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
@@ -71,6 +77,14 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_ROM0], 0x42);
 	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM / 2], 0x78);
 	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM - 1], 0xA5);
+
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x42);
+	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x3442);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0, NULL), 0x78563442);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM / 2, NULL), 0x78);
+	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 2, NULL), 0xA530);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 4, NULL), 0xA5302010);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 1, NULL), 0xA5);
 
 	core->unloadROM(core);
 	assert_null(gba->memory.rom);
