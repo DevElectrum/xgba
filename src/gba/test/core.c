@@ -201,6 +201,33 @@ M_TEST_DEFINE(loadExtendedFileROM) {
 #define XGBA_FILE_TEST
 #endif
 
+M_TEST_DEFINE(partialExtendedROM) {
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	const size_t size = GBA_SIZE_ROM0 * 2;
+	uint8_t* image = anonymousMemoryMap(size);
+	assert_non_null(image);
+	memcpy(&image[0xB5], "XGBA256", 7);
+	image[size - 4] = 0x11;
+	image[size - 3] = 0x22;
+	image[size - 2] = 0x33;
+	image[size - 1] = 0x44;
+
+	struct VFile* vf = VFileFromConstMemory(image, size);
+	assert_non_null(vf);
+	assert_true(core->loadROM(core, vf));
+	struct GBA* gba = core->board;
+	assert_int_equal(gba->memory.xgbaRomSize, size);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + size - 4, NULL), 0x44332211);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + 0xB5, NULL), 'X');
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_ROM0 + 0xB5, NULL), 'X');
+
+	core->unloadROM(core);
+	core->deinit(core);
+	mappedMemoryFree(image, size);
+}
+
 M_TEST_DEFINE(unmarkedOversizedROM) {
 	struct mCore* core = GBACoreCreate();
 	assert_non_null(core);
@@ -253,5 +280,6 @@ M_TEST_SUITE_DEFINE(GBACore,
 	cmocka_unit_test(loadNullROM),
 	cmocka_unit_test(loadExtendedROM),
 	XGBA_FILE_TEST
+	cmocka_unit_test(partialExtendedROM),
 	cmocka_unit_test(unmarkedOversizedROM),
 	cmocka_unit_test(rejectExtendedROMOverLimit))
