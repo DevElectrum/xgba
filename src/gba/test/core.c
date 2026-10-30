@@ -8,6 +8,8 @@
 #include <mgba/core/core.h>
 #include <mgba/gba/core.h>
 #include <mgba/internal/gba/gba.h>
+#include <mgba/internal/gba/io.h>
+#include <mgba/internal/gba/dma.h>
 #include <mgba/internal/arm/isa-inlines.h>
 #include <mgba-util/memory.h>
 #include <mgba-util/vfs.h>
@@ -121,6 +123,23 @@ M_TEST_DEFINE(loadExtendedROM) {
 	cpu->nextEvent = INT_MAX;
 	ARMRun(cpu);
 	assert_int_equal(cpu->gprs[1], 53);
+
+	const uint32_t dmaSource = GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0;
+	assert_int_equal(GBADMAWriteSAD(gba, 3, dmaSource), dmaSource);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x100), GBA_BASE_EWRAM + 0x100);
+	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
+	GBADMAWriteCNT_HI(gba, 3, 0x8400);
+	mTimingTick(&gba->timing, 200);
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0x78563442);
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x104, NULL), 0x04030201);
+
+	assert_int_equal(GBADMAWriteSAD(gba, 3, dmaSource), dmaSource);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x110), GBA_BASE_EWRAM + 0x110);
+	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
+	GBADMAWriteCNT_HI(gba, 3, 0x8000);
+	mTimingTick(&gba->timing, 200);
+	assert_int_equal(GBALoad16(cpu, GBA_BASE_EWRAM + 0x110, NULL), 0x3442);
+	assert_int_equal(GBALoad16(cpu, GBA_BASE_EWRAM + 0x112, NULL), 0x7856);
 
 	core->unloadROM(core);
 	assert_null(gba->memory.rom);
