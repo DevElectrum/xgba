@@ -1,0 +1,50 @@
+name: XGBA E7 256 MiB CPU boundary integration
+
+on:
+  push:
+    branches:
+      - xgba/e7-256mib
+    paths-ignore:
+      - '**/*.md'
+      - AGENTS.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-e7-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install emulator build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config libcmocka-dev zlib1g-dev libsdl2-dev
+      - name: Configure XGBA CPU and test suite
+        run: |
+          cmake -S . -B build-xgba -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DM_CORE_GBA=ON \
+            -DM_CORE_GB=OFF \
+            -DBUILD_QT=OFF \
+            -DBUILD_SDL=ON \
+            -DSDL_VERSION=2 \
+            -DBUILD_HEADLESS=ON \
+            -DBUILD_SUITE=ON \
+            -DENABLE_SCRIPTING=OFF \
+            -DUSE_FFMPEG=OFF \
+            -DUSE_EDITLINE=OFF \
+            -DUSE_DISCORD_RPC=OFF
+      - name: Compile emulator and CPU memory tests
+        run: cmake --build build-xgba --parallel 2
+      - name: Generate tagged and legacy ROM tests
+        run: |
+          python3 tools/xgba_generate_test_rom.py build-xgba/xgba-integration.gba
+          python3 tools/xgba_generate_test_rom.py --legacy build-xgba/legacy-integration.gba
+      - name: Run CPU high-address, native and save tests
+        env:
+          XGBA_TEST_ROM: ${{ github.workspace }}/build-xgba/xgba-integration.gba
+          XGBA_LEGACY_ROM: ${{ github.workspace }}/build-xgba/legacy-integration.gba
+        run: ctest --test-dir build-xgba --output-on-failure
