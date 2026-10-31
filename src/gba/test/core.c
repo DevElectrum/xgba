@@ -67,6 +67,17 @@ M_TEST_DEFINE(loadExtendedROM) {
 	image[GBA_SIZE_ROM0 + 0x200 + 6] = 0x03;
 	image[GBA_SIZE_ROM0 + 0x200 + 7] = 0x04;
 	image[GBA_SIZE_XGBA_ROM / 2] = 0x78;
+	// E7: five real asset boundaries of the 256 MiB address space.
+	// These use the same base addresses as the E7 game's relocated worlds.
+	const uint32_t highAssets[] = {
+		0x04000000, 0x08000000, 0x0C000000, 0x0E000000, 0x0FF00000,
+	};
+	for (size_t i = 0; i < sizeof(highAssets) / sizeof(highAssets[0]); ++i) {
+		image[highAssets[i] + 0x100] = (uint8_t) (0xA0 + i);
+		image[highAssets[i] + 0x101] = (uint8_t) (0xB0 + i);
+		image[highAssets[i] + 0x102] = (uint8_t) (0xC0 + i);
+		image[highAssets[i] + 0x103] = (uint8_t) (0xD0 + i);
+	}
 	image[GBA_SIZE_XGBA_ROM - 4] = 0x10;
 	image[GBA_SIZE_XGBA_ROM - 3] = 0x20;
 	image[GBA_SIZE_XGBA_ROM - 2] = 0x30;
@@ -128,6 +139,17 @@ M_TEST_DEFINE(loadExtendedROM) {
 	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 2, NULL), 0xA530);
 	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 4, NULL), 0xA5302010);
 	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 1, NULL), 0xA5);
+	// E7: test the actual CPU read path, not direct memory[] access.
+	for (size_t i = 0; i < sizeof(highAssets) / sizeof(highAssets[0]); ++i) {
+		uint32_t address = GBA_BASE_XGBA_ROM + highAssets[i] + 0x100;
+		uint32_t expected = 0xD0C0B0A0 + (uint32_t) i * 0x01010101;
+		assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xA0 + i);
+		assert_int_equal(GBAView8(gba->cpu, address), 0xA0 + i);
+		assert_int_equal(GBALoad16(gba->cpu, address, NULL), (expected & 0xFFFF));
+		assert_int_equal(GBALoad32(gba->cpu, address, NULL), expected);
+		assert_int_equal(GBAView32(gba->cpu, address), expected);
+	}
+	assert_int_equal(GBAView8(gba->cpu, 0x1FFFFFFF), 0xA5);
 
 	struct ARMCore* cpu = gba->cpu;
 	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + armOffset;
