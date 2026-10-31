@@ -1,5 +1,14 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: COMPANION GAME FULL 20-WORLD STORY INTEGRATION UNDERWAY (NO EMULATOR CHANGE)
+
+After user confirmed the optimized v2 Page 8 Zigzagoon survived a complete restart, the game repository `DevElectrum/xgba-emerald-test@xgba/e6-world-virtualization` began full E6 story integration. The user-approved plan requires automated story/warp coverage and one focused gameplay acceptance, not 20 campaign playthroughs.
+
+Game-side changes: original map callbacks, coordinate triggers and shared-event ownership restored; World 1 portal checkpoints/restores original party/bag/PC; dynamic/ordinary clone warp paths normalized; hub-selected destination separated from current active world; new games capture an immutable dual-CRC template in unused E6 extension file 0xE20000..0xE3FFFF so unvisited worlds can start from the cloned moving truck. Previously populated v2 saves lacking the template retain old baseline behavior, with no silent resets. Host tests added for 518 clone maps, 20 independent world records and template A/B fallback. Original accepted game source was preserved at `xgba/e6-v2-accepted-20261031`.
+
+Emulator branch `xgba/e6-large-save`, code, mapping and its accepted E5 baseline are **unchanged**. The earlier measured performance and v2 cold-restart durability are accepted only for the pre-integration game; new story/portal changes still require current game CI plus a disposable-copy gameplay smoke test. Do not tell user to replace their only E6 .sav or retest E5.
+
+
 ## 2026-10-31: COMPANION E6 V2 SPEED RESULTS FROM USER (NO EMULATOR CHANGE)
 
 After the game repo `xgba/e6-world-virtualization` optimized page-store v2 implementation, the user reports **~1 second PC page changes at 1× emulator speed** and **~1.5–2 seconds world changes at 1×**. Original v1 delays were **~6–7 seconds PC pages and ~3–4 seconds world changes at 5×**. These are different emulator speeds; don't invent an exact benchmark ratio. Performance is now considered responsive enough to continue E6 development, with no emulator optimization or source changes requested. Remaining gameplay acceptance item: v2 Page 8 Pokémon and world/inventory data after native save/full restart, which was not confirmed in this message. Existing old E5 and E6 saves and backups remain protected.
