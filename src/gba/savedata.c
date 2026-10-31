@@ -43,10 +43,11 @@ static void _ashesToAshes(struct mTiming* timing, void* user, uint32_t cyclesLat
 	// Funk to funky
 }
 
-static bool _xgbaE5Rom(const struct GBASavedata* savedata) {
+static bool _xgbaExtendedRom(const struct GBASavedata* savedata) {
     const struct GBA* gba = savedata->p;
     return gba && gba->memory.xgbaRom && gba->memory.rom
-        && ((const uint8_t*) gba->memory.rom)[0xBC] == 0xE5;
+        && (((const uint8_t*) gba->memory.rom)[0xBC] == 0xE5
+            || ((const uint8_t*) gba->memory.rom)[0xBC] == 0xE6);
 }
 
 void GBASavedataInit(struct GBASavedata* savedata, struct VFile* vf) {
@@ -62,6 +63,7 @@ void GBASavedataInit(struct GBASavedata* savedata, struct VFile* vf) {
 	savedata->mapMode = MAP_WRITE;
 	savedata->maskWriteback = false;
 	savedata->xgbaE5 = false;
+	savedata->xgbaE6 = false;
 	savedata->dirty = 0;
 	savedata->dirtAge = 0;
 	savedata->dust.name = "GBA Savedata Settling";
@@ -110,6 +112,7 @@ void GBASavedataDeinit(struct GBASavedata* savedata) {
 	savedata->data = 0;
 	savedata->type = GBA_SAVEDATA_AUTODETECT;
 	savedata->xgbaE5 = false;
+	savedata->xgbaE6 = false;
 }
 
 void GBASavedataMask(struct GBASavedata* savedata, struct VFile* vf, bool writeback) {
@@ -183,7 +186,8 @@ size_t GBASavedataSize(const struct GBASavedata* savedata) {
 	case GBA_SAVEDATA_FLASH512:
 		return GBA_SIZE_FLASH512;
 	case GBA_SAVEDATA_FLASH1M:
-		return savedata->xgbaE5 ? GBA_SIZE_XGBA_E5_SAVE : GBA_SIZE_FLASH1M;
+		return savedata->xgbaE6 ? GBA_SIZE_XGBA_E6_SAVE
+            : savedata->xgbaE5 ? GBA_SIZE_XGBA_E5_SAVE : GBA_SIZE_FLASH1M;
 	case GBA_SAVEDATA_EEPROM:
 		return GBA_SIZE_EEPROM;
 	case GBA_SAVEDATA_EEPROM512:
@@ -274,45 +278,55 @@ void GBASavedataForceType(struct GBASavedata* savedata, enum GBASavedataType typ
 
 void GBASavedataInitFlash(struct GBASavedata* savedata) {
 	if (savedata->type == GBA_SAVEDATA_AUTODETECT) {
-		savedata->type = _xgbaE5Rom(savedata) ? GBA_SAVEDATA_FLASH1M : GBA_SAVEDATA_FLASH512;
+		savedata->type = _xgbaExtendedRom(savedata) ? GBA_SAVEDATA_FLASH1M : GBA_SAVEDATA_FLASH512;
 	}
 	if (savedata->type != GBA_SAVEDATA_FLASH512 && savedata->type != GBA_SAVEDATA_FLASH1M) {
 		mLOG(GBA_SAVE, WARN, "Can't re-initialize savedata");
 		return;
 	}
-	savedata->xgbaE5 = savedata->type == GBA_SAVEDATA_FLASH1M && _xgbaE5Rom(savedata);
-	if (savedata->xgbaE5 && savedata->vf) {
-		// Complete v1 superblock: magic, version, native size, file size, CRC32.
-		// Requiring the full header avoids enabling 0x0F storage on a stale or
-		// accidentally matching legacy save. Either redundant copy may survive.
-		const uint8_t header[24] = {
+	// Never activate an extension solely because the ROM requests one.
+	// Both the ROM revision and a complete, versioned on-disk header must agree.
+	const uint8_t revision = (savedata->p && savedata->p->memory.rom)
+	    ? ((const uint8_t*) savedata->p->memory.rom)[0xBC] : 0;
+	const bool eligible = savedata->type == GBA_SAVEDATA_FLASH1M && _xgbaExtendedRom(savedata);
+	savedata->xgbaE5 = eligible && revision == 0xE5;
+	savedata->xgbaE6 = eligible && revision == 0xE6;
+	if ((savedata->xgbaE5 || savedata->xgbaE6) && savedata->vf) {
+		const uint8_t e5Header[24] = {
 			'X', 'G', 'B', 'A', 'E', '5', 'S', 0,
-			1, 0, 0, 0,
-			0, 0, 2, 0,
-			0, 0, 16, 0,
+			1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0,
 			0xFE, 0xB1, 0x7D, 0x49
 		};
-		const off_t locations[2] = { GBA_SIZE_FLASH1M, GBA_SIZE_XGBA_E5_SAVE - 0x1000 };
-		uint8_t found[sizeof(header)];
+		const uint8_t e6Header[24] = {
+			'X', 'G', 'B', 'A', 'E', '6', 'S', 0,
+			2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1,
+			0xB0, 0x2B, 0x5B, 0x12
+		};
+		const size_t expectedSize = savedata->xgbaE6 ? GBA_SIZE_XGBA_E6_SAVE : GBA_SIZE_XGBA_E5_SAVE;
+		const uint8_t* header = savedata->xgbaE6 ? e6Header : e5Header;
+		const off_t locations[2] = { GBA_SIZE_FLASH1M, expectedSize - 0x1000 };
+		uint8_t found[24];
 		bool valid = false;
-		if (savedata->vf->size(savedata->vf) >= GBA_SIZE_XGBA_E5_SAVE) {
+		if (savedata->vf->size(savedata->vf) >= (off_t) expectedSize) {
 			for (size_t i = 0; i < 2; ++i) {
 				if (savedata->vf->seek(savedata->vf, locations[i], SEEK_SET) >= 0
 				    && savedata->vf->read(savedata->vf, found, sizeof(found)) == sizeof(found)
-				    && memcmp(header, found, sizeof(header)) == 0) {
+				    && memcmp(header, found, sizeof(found)) == 0) {
 					valid = true;
 					break;
 				}
 			}
 		}
 		if (!valid) {
-			mLOG(GBA_SAVE, WARN, "XGBA E5 needs a valid 1 MiB save superblock; keeping native flash unchanged");
+			mLOG(GBA_SAVE, WARN, "XGBA save extension needs matching E5/E6 superblocks; keeping native flash unchanged");
 			savedata->xgbaE5 = false;
+			savedata->xgbaE6 = false;
 		}
 	}
 	int32_t flashSize = GBA_SIZE_FLASH512;
 	if (savedata->type == GBA_SAVEDATA_FLASH1M) {
-		flashSize = savedata->xgbaE5 ? GBA_SIZE_XGBA_E5_SAVE : GBA_SIZE_FLASH1M;
+		flashSize = savedata->xgbaE6 ? GBA_SIZE_XGBA_E6_SAVE
+            : savedata->xgbaE5 ? GBA_SIZE_XGBA_E5_SAVE : GBA_SIZE_FLASH1M;
 	}
 	off_t end;
 	if (!savedata->vf) {
