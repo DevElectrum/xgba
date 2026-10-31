@@ -1,5 +1,14 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: E6 16 MiB emulator MILESTONE GREEN, new branch active
+
+- **Real development branch** `xgba/e6-large-save` created from accepted `xgba/e5-save-expansion`. E6 code exists: `include/mgba/internal/gba/memory.h`, `savedata.h`, `src/gba/savedata.c`, `memory.c`, `src/gba/test/core.c`; `.github/workflows/xgba-e6.yml` added. Baseline E5 kept untouched.
+- ROM revision `0xE6` separately enables a **16 MiB E6 save envelope** only when the matching v2 CRC32 superblock at file offset 0x20000 or 0xFFF000 is valid; 0x0F maps file offset 0x20000 through 0xFFFFFF, and native Flash1M first 128 KiB continues normally at 0x0E. E5 revision 0xE5 still maps 1 MiB and runs its old test. The E6 test writes high 0x0F addresses, reads after emulator shutdown/reload, and tests backup-header / invalid-header fallback.
+- **Verified GREEN core CI** (including E6 persistence test): https://github.com/DevElectrum/xgba/actions/runs/41182582688 . Code HEAD for first passing E6 build: `69050430`. CI workflow later refined only to avoid docs-triggered rebuilds (`bfd9e6d7`). Qt user runtime of E6 not yet tested.
+- Companion game branch `xgba/e6-world-virtualization` now has `make e6`, Python copy-only save migration, 53,380-byte SaveBlock1/SaveBlock2/PokemonStorage world records, and an automatic world-portal state-switch prototype. Emulator interface and game C code must be tested **together**; see companion `docs/XGBA_E6_PLAN.md`. The game native compiler CI was still running at this checkpoint.
+- **Next:** inspect game E6 CI and fix failures; once green, guide the user through a copy-only E5→E6 save, two-branch update/build, Qt E6 ROM launch, and focused World 3/20 smoke test. E6 PC expansion to 100 boxes/world and playable cloned story events remain pending. Do not declare those done. Never overwrite accepted E5 `.sav`.
+
+
 ## CURRENT NEXT ASTRA CHECKPOINT: 2026-10-31 (E6 large-save strategy; no E6 code yet)
 
 The user emphasized this is a **passion project**, not a business release. Prefer large ambitious implementation leaps, quick iteration and focused smoke tests rather than exhaustive QA. Motto: **Regieleki, speed is god**. A critical process requirement is to **update the local-in-repository handoff and agent instructions periodically**, especially at every milestone, blocker and architectural pivot, so another Astra can take over a long-running project without reconstructing context.
