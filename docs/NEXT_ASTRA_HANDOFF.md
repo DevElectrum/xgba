@@ -1,5 +1,22 @@
 # XGBA living handoff for future Astras
 
+## CURRENT NEXT ASTRA CHECKPOINT: 2026-10-31 (E6 large-save strategy; no E6 code yet)
+
+The user emphasized this is a **passion project**, not a business release. Prefer large ambitious implementation leaps, quick iteration and focused smoke tests rather than exhaustive QA. Motto: **Regieleki, speed is god**. A critical process requirement is to **update the local-in-repository handoff and agent instructions periodically**, especially at every milestone, blocker and architectural pivot, so another Astra can take over a long-running project without reconstructing context.
+
+**Read first:** this file, local [`AGENTS.md`](../AGENTS.md), and companion game repo `DevElectrum/xgba-emerald-test` docs `AGENTS.md`, `docs/NEXT_ASTRA_HANDOFF.md` and `docs/XGBA_E6_PLAN.md` (on game branch `xgba/e5-expanded-save` until an E6 feature branch is created). The full E6 architectural plan is in the companion game's E6 document.
+
+**Verified baseline:** emulator branch `xgba/e5-save-expansion` already supports a 1 MiB versioned E5 save and a 896 KiB persistent 0x0F mapped extension. The user **personally confirmed** the game's World 3 and World 20 E5 snapshots survived world switches, normal game save and full emulator exit/restart. DO NOT require user to redo accepted E4/E5 tests; DO NOT claim the 1 MiB format stores full independent world states or huge Pokémon boxes.
+
+**New E6 objective (approved as direction, unimplemented):** EXPERIMENTAL expansion to a versioned approximately **16 MiB save envelope** on a *new feature branch* (proposed `xgba/e6-large-save` from accepted E5; not yet created). Companion game aims to virtualize all 20 Hoenn worlds' actual gameplay state, revive cloned NPCs/events/story, and stretch toward ~100 PC boxes per world. The emulator change should preserve original 128 KiB native Flash1M behavior, support an explicit E5→E6 save-copy migration, and audit 0x0F address boundary, save dirty/flush, RTC, file size and opt-in marker/versioning. Do not silently open E5 saves as E6. Respect EWRAM limits on the game side. This is a high-risk prototype, so isolate in experiment branches and protect known-good saves.
+
+**Current repo changes:** created `AGENTS.md` on E5 emulator branch (commit `1a66d9a0`); companion repo added E6 plan `8099a85a`, updated game `AGENTS.md` `060bee38` and game handoff `7af0cc93`. All documentation-only, no E6 runtime implementation or E6 user testing.
+
+**Immediate next steps:** inspect both current branches/CI, create E6 experimental branches when coding starts, implement emulator large-save plumbing and game format/migration together, then world virtualization and PC growth. User's preferred local UX is 3 commands maximum when practical: update/build; optional copy/migrate save; Qt `mgba-qt` ROM launch. **GitHub commits do not appear on Nyx until user runs `git pull`.** Never modify `DevElectrum/grand-anthology` or `master` for the experiment.
+
+**Handoff contract:** after every meaningful code change, CI result, user test, blocker, or revised plan, update/commit this handoff and agent file as needed, plus companion notes if interfaces change. Include branch, exact commit SHA, changed files, tests/CI status and URLs, verified vs proposed, blocking issue and next concrete step. Commit before conversation context is exhausted.
+
+
 ## 2026-10-31: E5 LIVE GAMEPLAY PERSISTENCE ACCEPTED
 
 **USER CONFIRMED BOTH PHASES PASSED.** With the E5 Qt XGBA build and the separately initialized `xgba-emerald-e5.sav`, the user visited World 20 and World 3. In each world, the E5 writer successfully recorded the existing 16-byte E4 prototype event state and the E5 auditor reported a match. Returning between worlds preserved each independent E5 snapshot. After a normal in-game save, complete emulator shutdown, and reload, both world's E5 auditors again reported matches. This is direct user verification of guest 0x0F writes surviving the emulator's save-file cycle.
