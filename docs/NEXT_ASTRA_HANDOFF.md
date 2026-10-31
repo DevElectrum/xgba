@@ -1,5 +1,16 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: USER-MANDATED ENGINEERING PROCESS FOR EVERY FUTURE E(i)
+
+**Permanent instruction, also written into this repo's `AGENTS.md` and the companion game's `AGENTS.md`:** The user wants Regieleki-speed implementation **with front-loaded performance, error handling and adversarial planning**. They accept legitimate post-test optimization, but do NOT want to spend three successive gameplay waves finding architectural oversights in each E(i). A passing build or happy-path feature is not a finished milestone.
+
+**Before coding:** define requirements and invariants; estimate realistic frequent/worst-case CPU, RAM, persistent-write, checksum and observed-latency costs at maximum capacity; compare alternatives; explicitly consider power-loss/torn writes, corruption, cache desynchronization, file bounds, format-version mismatch, migration and rollback; run an internal Architect-vs-Adversary design challenge. Set measurable success targets. **During implementation:** preserve E5 and populated E6 saves, use versioning and verified backups, implement recovery, and automate relevant boundary/full-capacity/corrupt-data tests. **Acceptance:** design gate → CI/error-path gate → one short user gameplay round with correctness and performance. Avoid re-testing accepted results. Significant genuine surprises may be fixed after testing, but predictable bottlenecks should be anticipated.
+
+**Latest actual user tests in companion game:** E6 Pokémon PC **PAGE 8 / BOX 1 Zigzagoon survives page changes**, and World 3 Poké Balls **reappear correctly upon returning to World 3**. Both tests passed in gameplay; do not repeat them except to verify a materially new storage format. However performance is **unacceptable**: PC page changes take about **6–7 seconds even at 5× fast-forward**; world changes take about **3–4 seconds at 5×** after the PC expansion. This is the architectural oversight motivating optimization, not an emulator mapping failure proven by these timings.
+
+**NEXT = PLANNING, NOT CODE:** Prepare an adversarially reviewed optimized page-store proposal: independent per-page records (two CRC-protected copies per page, ~33.8 KB each), avoid two ~270 KB whole-bank copies per switch, faster CRC checks, no redundant checkpoints, compatible safe migration of already populated existing E6 sidecar banks with explicit backup/readback/rollback, worst-case timing and corruption tests. Cross-check exact save offsets and conversion staging: preserving old data during migration is essential, not assumed. User asked to record rules only; **do not start the optimization implementation in response to this instruction**. Read companion game's handoff and design document before work.
+
+
 ## 2026-10-31: Eight-page PC bank now implemented in companion E6 game (NO emulator change)
 
 - Companion game branch `DevElectrum/xgba-emerald-test@xgba/e6-world-virtualization` has **implemented 112-boxes/world streamed storage** (8 native pages ×14 boxes) with redundant per-world sidecar banks occupying file region 0x380000..0xE1FFFF, accessed using already implemented E6 extension address `0x0F360000`. New `src/xgba_e6_boxes.c` and `src/pokemon_storage_system.c` CHANGE PC PAGE UI.
