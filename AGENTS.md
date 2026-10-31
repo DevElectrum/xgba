@@ -1,5 +1,22 @@
 # Astra agent rules: XGBA emulator fork
 
+## Mandatory E(i) design gate: performance and adversarial review
+
+**Standing rule from the user (2026-10-31):** Regieleki speed means *front-loaded engineering*, not shipping an avoidable bottleneck and asking the user to spend three rounds testing and optimizing every E(i). A working build is not complete until correctness, performance and failure behavior meet the agreed scope. Post-test optimization is allowed for genuine discoveries; predictable costs, compatibility risks, and obvious failure modes are planning oversights, not acceptable recurring follow-ups.
+
+Before implementing **every new E(i) milestone, substantial feature, or persistence-format change**, do a concise design and adversarial review, primarily internally, and record the consequential decisions in the plan/handoff:
+
+1. **Requirements and invariants:** define expected behavior, preserved data, ownership of live/cached state, and what must never be lost or cross-contaminated.
+2. **Performance budget:** identify hot paths and frequency; estimate *real worst-case* CPU cycles/algorithmic work, RAM/EWRAM/IWRAM, ROM, save-space, disk/0x0F I/O, copying, checksums, and latency. Consider full-capacity and normal-case behavior. Prefer per-record/per-page incremental writes over repeated whole-bank rescans. Set a measurable performance target for gameplay.
+3. **Adversarial failure analysis:** challenge proposed designs with corrupt headers/CRC, interrupted/torn writes, power loss, stale caches, mismatched encryption, save-load order, partially initialized pages, full storage, version mismatch and boundary/offset mistakes. Ensure recoverability and fail-safe semantics rather than trusting the happy path.
+4. **Compatibility and rollback:** preserve accepted E5, existing E6 game data, original native Flash and RTC semantics; plan explicit format-version detection, migration, readback verification, backups, and rollback *before* a layout change. Never silently overwrite or irreversibly reinterpret a user save.
+5. **Alternatives and tradeoffs:** have an internal "Architect Astra vs. Adversarial Astra" review. Compare simpler/faster/safer options, document why the chosen one wins and what remains unknown.
+6. **Test and acceptance contract:** CI should exercise boundary cases, worst-case/full-capacity data, migration, CRC fallback and bad writes where relevant. Use a *single focused user gameplay acceptance round* with expected results and a performance check when practical; do not make the user repeat accepted tests or act as routine QA.
+7. **Release gates:** design gate → implementation/CI gate → gameplay acceptance. Label planned, coded, build-passed, and user-proven separately. Fix truly unforeseen problems without bureaucracy, but do not call a milestone done just because it compiles or passes one functional smoke test.
+
+**E6 cautionary example:** the first 112-box implementation rewrote ~270 KiB PC banks repeatedly with bit-by-bit CRC32; it functioned but took ~6–7 seconds even at 5× for a page switch and ~3–4 seconds at 5× for a world switch. A write-volume and repeated-checksum estimate before coding should have caught this. For the next optimization, design fast incremental per-page persistence, efficient validation, safe conversion of existing populated E6 page banks, and interrupted-write recovery *before coding*. The user asked for a plan; do not mistake that planning approval for authorization to edit code.
+
+
 ## Start here on every new chat
 
 1. Read [docs/NEXT_ASTRA_HANDOFF.md](docs/NEXT_ASTRA_HANDOFF.md), then the companion game [DevElectrum/xgba-emerald-test](https://github.com/DevElectrum/xgba-emerald-test) `AGENTS.md`, `docs/NEXT_ASTRA_HANDOFF.md`, and `docs/XGBA_E6_PLAN.md` (on `xgba/e5-expanded-save` until E6 branches exist). Inspect actual branch HEAD and latest CI before changing anything. No assumptions from stale historical notes.
