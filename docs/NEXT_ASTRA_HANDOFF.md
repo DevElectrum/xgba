@@ -1,5 +1,16 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: Companion game E6 optimized PC page format implemented (NO EMULATOR CODE CHANGE)
+
+The user authorized a single adversarially planned speed-optimization sprint after **6–7sec PC page switches** and **3–4sec world travel** at **5× fast-forward**. Game branch `DevElectrum/xgba-emerald-test@xgba/e6-world-virtualization` implements CRC32-protected independent A/B records for each 33,744-byte PC page, plus two tiny selected-page metadata records, without EWRAM growth or native flash change. File sidecar remains `0x380000..0xE1FFFF` (20 worlds × `0x88000`). Fast ROM CRC table, validated resident-page cache, skipped unchanged writes, and accelerated world-snapshot handling. All 0x0F memory accesses remain 8-bit.
+
+**User's existing E6 v1 save remains separate and unchanged.** The new game ROM rejects old v1 sidecar banks until the user closes XGBA and performs a **create-only offline conversion** using `tools/xgba_e6_box_upgrade.py ORIGINAL.sav NEW.sav`. Converter checks old CRCs, exact payload preservation across all initialized pages, new A/B redundancy, and unchanged native/E5/E6 world/RTC and other bytes. Keep the original save separately backed up; never open a v2 save with an older v1 game ROM. No remote changes to user's local saves.
+
+Companion game's automated migration/capacity/corruption tests passed https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41192005262. C source through `e755c222` built green https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41191853435; consult latest Actions after subsequent code before sending user tests. **Optimized gameplay latency and cold restart remain untested.** Game handoff/plan provide precise safe deployment and acceptance expectations.
+
+**Emulator E6 code is unchanged.** Preserve `xgba/e6-large-save`, E5 stable branch, and every save backup. Mandatory adversarial E(i) engineering standard is active.
+
+
 ## 2026-10-31: USER-MANDATED ENGINEERING PROCESS FOR EVERY FUTURE E(i)
 
 **Permanent instruction, also written into this repo's `AGENTS.md` and the companion game's `AGENTS.md`:** The user wants Regieleki-speed implementation **with front-loaded performance, error handling and adversarial planning**. They accept legitimate post-test optimization, but do NOT want to spend three successive gameplay waves finding architectural oversights in each E(i). A passing build or happy-path feature is not a finished milestone.
