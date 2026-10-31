@@ -1,5 +1,7 @@
 # XGBA living handoff for future Astras
 
+- **2026-10-31 E5 integration gate update:** emulator CI https://github.com/DevElectrum/xgba/actions/runs/41172551382 passed, including the new E5 persisted-save/backup-header/fail-closed regression. Companion game branch native and tagged ROM CI also passed: https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41172674059 and https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41172674073. The next gate is user gameplay using an independently initialized 1 MiB E5 save, NOT modifying the accepted E4 original.
+
 ## 2026-10-31: E5 emulator persistence regression and safer detection
 
 - Active E5 branch `xgba/e5-save-expansion` now at commit `0a0a1e5ff82ba807944612dec3f8463cbda3b2c5`.
