@@ -1,5 +1,10 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: COMPANION E6 V2 SPEED RESULTS FROM USER (NO EMULATOR CHANGE)
+
+After the game repo `xgba/e6-world-virtualization` optimized page-store v2 implementation, the user reports **~1 second PC page changes at 1× emulator speed** and **~1.5–2 seconds world changes at 1×**. Original v1 delays were **~6–7 seconds PC pages and ~3–4 seconds world changes at 5×**. These are different emulator speeds; don't invent an exact benchmark ratio. Performance is now considered responsive enough to continue E6 development, with no emulator optimization or source changes requested. Remaining gameplay acceptance item: v2 Page 8 Pokémon and world/inventory data after native save/full restart, which was not confirmed in this message. Existing old E5 and E6 saves and backups remain protected.
+
+
 ## 2026-10-31: Companion game E6 optimized PC page format implemented (NO EMULATOR CODE CHANGE)
 
 The user authorized a single adversarially planned speed-optimization sprint after **6–7sec PC page switches** and **3–4sec world travel** at **5× fast-forward**. Game branch `DevElectrum/xgba-emerald-test@xgba/e6-world-virtualization` implements CRC32-protected independent A/B records for each 33,744-byte PC page, plus two tiny selected-page metadata records, without EWRAM growth or native flash change. File sidecar remains `0x380000..0xE1FFFF` (20 worlds × `0x88000`). Fast ROM CRC table, validated resident-page cache, skipped unchanged writes, and accelerated world-snapshot handling. All 0x0F memory accesses remain 8-bit.
