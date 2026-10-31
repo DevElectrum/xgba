@@ -1,5 +1,12 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: Eight-page PC bank now implemented in companion E6 game (NO emulator change)
+
+- Companion game branch `DevElectrum/xgba-emerald-test@xgba/e6-world-virtualization` has **implemented 112-boxes/world streamed storage** (8 native pages ×14 boxes) with redundant per-world sidecar banks occupying file region 0x380000..0xE1FFFF, accessed using already implemented E6 extension address `0x0F360000`. New `src/xgba_e6_boxes.c` and `src/pokemon_storage_system.c` CHANGE PC PAGE UI.
+- Game E6 ROM CI source build GREEN https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41188529114 (code through `3a622364`); newer Python inspector and tests check CRC/offsets. **PC gameplay has NOT YET been user-tested.** Do not claim game success merely from emulator/ROM CI.
+- Companion E6 inventory fix commit `a4990784` removes `SavePlayerBag()` stale load-cache overwrites during portal transitions and save checkpoints; leaves `LoadPlayerBag()` to refresh caches after restore. Game compilation success; gameplay inventory still needs minimal validation.
+- **No new XGBA emulator changes needed for PC pages**, because existing E6 16 MiB mapping already supports all addresses. Continue emulator on `xgba/e6-large-save` if future bugs arise. Protect user's `xgba-emerald-e6.sav` with a timestamped copy before first live box test. Game handoff and `docs/XGBA_E6_PLAN.md` contain exact current commit/CI and test steps. User wants 2 commands (game update+build+backup, Qt launch) and fast iteration.
+
 ## 2026-10-31: GAMEPLAY ACCEPTANCE UPDATE FROM E6 GAME REPO
 
 The user verified **independent party state for World 3 and World 20** in five screenshots: World 20 has only Torchic Lv6 6/22 HP, World 3 has Torchic Lv8 + Zigzagoon + two Poochyena, then caught another Zigzagoon; returning to World 20 left its party and HP unchanged; returning to World 3 retained all five Pokémon. No native save or emulator reboot took place during the sequence. Thus **in-session world party/capture isolation passes**. Do not call E6 cold-restart party persistence verified by this test. Game repo handoff commit `246a35bf`; code unchanged in emulator. E6 next: 8 streamed native 14-box PC pages per world (112 boxes, 2,240 total), keeping a single 33,744-byte PC in EWRAM and storing pages in the existing 16 MiB extension. See companion `docs/XGBA_E6_PLAN.md` for design. Preserve E5 and E6 save files; skip redundant E6 party testing.
