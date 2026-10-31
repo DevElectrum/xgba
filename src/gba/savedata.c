@@ -282,13 +282,31 @@ void GBASavedataInitFlash(struct GBASavedata* savedata) {
 	}
 	savedata->xgbaE5 = savedata->type == GBA_SAVEDATA_FLASH1M && _xgbaE5Rom(savedata);
 	if (savedata->xgbaE5 && savedata->vf) {
-		const uint8_t marker[8] = { 'X', 'G', 'B', 'A', 'E', '5', 'S', 0 };
-		uint8_t found[sizeof(marker)];
-		if (savedata->vf->size(savedata->vf) < GBA_SIZE_XGBA_E5_SAVE
-		    || savedata->vf->seek(savedata->vf, GBA_SIZE_FLASH1M, SEEK_SET) < 0
-		    || savedata->vf->read(savedata->vf, found, sizeof(found)) != sizeof(found)
-		    || memcmp(marker, found, sizeof(marker)) != 0) {
-			mLOG(GBA_SAVE, WARN, "XGBA E5 needs an initialized 1 MiB save; keeping native flash unchanged");
+		// Complete v1 superblock: magic, version, native size, file size, CRC32.
+		// Requiring the full header avoids enabling 0x0F storage on a stale or
+		// accidentally matching legacy save. Either redundant copy may survive.
+		const uint8_t header[24] = {
+			'X', 'G', 'B', 'A', 'E', '5', 'S', 0,
+			1, 0, 0, 0,
+			0, 0, 2, 0,
+			0, 0, 16, 0,
+			0xFE, 0xB1, 0x7D, 0x49
+		};
+		const off_t locations[2] = { GBA_SIZE_FLASH1M, GBA_SIZE_XGBA_E5_SAVE - 0x1000 };
+		uint8_t found[sizeof(header)];
+		bool valid = false;
+		if (savedata->vf->size(savedata->vf) >= GBA_SIZE_XGBA_E5_SAVE) {
+			for (size_t i = 0; i < 2; ++i) {
+				if (savedata->vf->seek(savedata->vf, locations[i], SEEK_SET) >= 0
+				    && savedata->vf->read(savedata->vf, found, sizeof(found)) == sizeof(found)
+				    && memcmp(header, found, sizeof(header)) == 0) {
+					valid = true;
+					break;
+				}
+			}
+		}
+		if (!valid) {
+			mLOG(GBA_SAVE, WARN, "XGBA E5 needs a valid 1 MiB save superblock; keeping native flash unchanged");
 			savedata->xgbaE5 = false;
 		}
 	}
