@@ -71,6 +71,7 @@ struct GBASavedata {
 	int mapMode;
 	bool maskWriteback;
 	bool xgbaE5;
+	bool xgbaE6;
 	struct VFile* realVf;
 
 	int8_t readBitsRemaining;
