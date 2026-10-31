@@ -1,5 +1,17 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: E5 LIVE GAMEPLAY PERSISTENCE ACCEPTED
+
+**USER CONFIRMED BOTH PHASES PASSED.** With the E5 Qt XGBA build and the separately initialized `xgba-emerald-e5.sav`, the user visited World 20 and World 3. In each world, the E5 writer successfully recorded the existing 16-byte E4 prototype event state and the E5 auditor reported a match. Returning between worlds preserved each independent E5 snapshot. After a normal in-game save, complete emulator shutdown, and reload, both world's E5 auditors again reported matches. This is direct user verification of guest 0x0F writes surviving the emulator's save-file cycle.
+
+The final reachable E5 NPC locations in cloned Littleroot are **writer (14,15)** and **auditor (16,15)**. The original (20,12)/(22,12) placements were obstructed by trees and have been fixed in the generator. The user confirmed the replacement NPCs are reachable.
+
+**Accepted scope:** E5 opt-in 1 MiB save bridge and independent 16-byte snapshot read/write/restart proof for Worlds 3/20. **Not accepted:** full world-local trainer/story data, Pokémon PC box expansion, maximal 20,448-byte record stress tests, game-level torn-write recovery, all-world coverage, and end-to-end RTC compatibility. The original E4 save must remain backed up. Do not ask the user to repeat this already successful acceptance test.
+
+User workflow preference: **three commands whenever practical**: (1) update repositories/build, (2) create or copy save only if applicable, (3) run the Qt `mgba-qt` with the new ROM. For ROM-only patches, give two commands: update/rebuild, launch.
+
+Next: choose the next design milestone. The 20 KiB E5 per-world payload cannot accommodate a vanilla 33,744-byte `PokemonStorage` wholesale; do not claim full Pokémon boxes are supported. Plan larger or differently packed world/PC storage separately. Keep `DevElectrum/grand-anthology` and both `master` branches untouched.
+
 - **2026-10-31 E5 integration gate update:** emulator CI https://github.com/DevElectrum/xgba/actions/runs/41172551382 passed, including the new E5 persisted-save/backup-header/fail-closed regression. Companion game branch native and tagged ROM CI also passed: https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41172674059 and https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41172674073. The next gate is user gameplay using an independently initialized 1 MiB E5 save, NOT modifying the accepted E4 original.
 
 ## 2026-10-31: E5 emulator persistence regression and safer detection
