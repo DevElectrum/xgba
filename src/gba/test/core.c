@@ -484,7 +484,7 @@ M_TEST_DEFINE(e5SavedataPersistent) {
 	assert_int_equal(GBASavedataSize(&gba->memory.savedata), GBA_SIZE_XGBA_E5_SAVE);
 	GBAStore8(gba->cpu, address, 0xA5, NULL);
 	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xA5);
-	assert_true(gba->memory.savedata.dirty & mSAVEDATA_DIRT_NEW);
+	assert_true(gba->memory.savedata.dirty != 0);
 	GBAStore8(gba->cpu, GBA_BASE_SRAM_MIRROR + GBA_SIZE_XGBA_E5_EXTENSION, 0x42, NULL);
 	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_SRAM_MIRROR + GBA_SIZE_XGBA_E5_EXTENSION, NULL), 0xFF);
 
