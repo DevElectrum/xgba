@@ -1,5 +1,10 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: GAMEPLAY ACCEPTANCE UPDATE FROM E6 GAME REPO
+
+The user verified **independent party state for World 3 and World 20** in five screenshots: World 20 has only Torchic Lv6 6/22 HP, World 3 has Torchic Lv8 + Zigzagoon + two Poochyena, then caught another Zigzagoon; returning to World 20 left its party and HP unchanged; returning to World 3 retained all five Pokémon. No native save or emulator reboot took place during the sequence. Thus **in-session world party/capture isolation passes**. Do not call E6 cold-restart party persistence verified by this test. Game repo handoff commit `246a35bf`; code unchanged in emulator. E6 next: 8 streamed native 14-box PC pages per world (112 boxes, 2,240 total), keeping a single 33,744-byte PC in EWRAM and storing pages in the existing 16 MiB extension. See companion `docs/XGBA_E6_PLAN.md` for design. Preserve E5 and E6 save files; skip redundant E6 party testing.
+
+
 ## 2026-10-31: E6 16 MiB emulator MILESTONE GREEN, new branch active
 
 - **Real development branch** `xgba/e6-large-save` created from accepted `xgba/e5-save-expansion`. E6 code exists: `include/mgba/internal/gba/memory.h`, `savedata.h`, `src/gba/savedata.c`, `memory.c`, `src/gba/test/core.c`; `.github/workflows/xgba-e6.yml` added. Baseline E5 kept untouched.
