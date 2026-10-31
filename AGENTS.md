@@ -17,6 +17,10 @@ Before implementing **every new E(i) milestone, substantial feature, or persiste
 **E6 cautionary example:** the first 112-box implementation rewrote ~270 KiB PC banks repeatedly with bit-by-bit CRC32; it functioned but took ~6–7 seconds even at 5× for a page switch and ~3–4 seconds at 5× for a world switch. A write-volume and repeated-checksum estimate before coding should have caught this. For the next optimization, design fast incremental per-page persistence, efficient validation, safe conversion of existing populated E6 page banks, and interrupted-write recovery *before coding*. The user asked for a plan; do not mistake that planning approval for authorization to edit code.
 
 
+## Current E7 256 MiB capacity test (2026-10-31)
+
+User requested ambitious E7 with fewer iterations. E6 save architecture and emulator runtime code are unchanged; xgba/e7-256mib adds CPU boundary tests for all five remote geometry placements and final 0x1FFFFFFF. E7 full core CI is green: https://github.com/DevElectrum/xgba/actions/runs/41242131166. Avoid additional E6 save/PC work. Only one disposable-ROM high-map gameplay smoke after companion game xgba/e7-256mib CI passes, then return to Grand Anthology. See top of docs/NEXT_ASTRA_HANDOFF.md.
+
 ## Start here on every new chat
 
 1. Read [docs/NEXT_ASTRA_HANDOFF.md](docs/NEXT_ASTRA_HANDOFF.md), then the companion game [DevElectrum/xgba-emerald-test](https://github.com/DevElectrum/xgba-emerald-test) `AGENTS.md`, `docs/NEXT_ASTRA_HANDOFF.md`, and `docs/XGBA_E6_PLAN.md` (on `xgba/e5-expanded-save` until E6 branches exist). Inspect actual branch HEAD and latest CI before changing anything. No assumptions from stale historical notes.
