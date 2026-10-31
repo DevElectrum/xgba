@@ -1,5 +1,10 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: E7 GAMEPLAY ACCEPTED, NO FURTHER ROM CAPACITY TESTS
+
+User screenshot in Test Town: **"E7: 256 MiB ROM address test! ALL 5 remote windows PASS!"** User reports World 20 maps render fine. This completes exactly the agreed E7 runtime acceptance (direct in-game read to 0x1FFFFFFF plus actual high-address map geometry at World 20) after successful game https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41242174037 and emulator https://github.com/DevElectrum/xgba/actions/runs/41242131166 CI runs. E7 is accepted as experimental 256 MiB XGBA256 ROM capacity foundation. No emulator runtime changes or E6 save conversion were made for E7. Preserve E5/E6 accepted branches, original saves, and freeze E7 as xgba/e7-accepted-20261031. Do not request further E7 or E6 routine QA. Next engineering target is Grand Anthology when user specifies integration.
+
+
 ## 2026-10-31 E7: HIGH-ADDRESS CPU CI PASSED
 E7 experimental branch xgba/e7-256mib forks existing xgba/e6-large-save. The 256 MiB ROM CPU memory address mapping was already implemented in E0/P0; for E7 src/gba/test/core.c now proves 8/16/32-bit direct CPU and view reads at 0x14000100, 0x18000100, 0x1C000100, 0x1E000100, 0x1FF00100 plus final byte 0x1FFFFFFF on an actual 256 MiB tagged image. It also retains ARM/Thumb code execution, DMA, ROM bounds and E6 save persistence tests. NO emulator runtime/savedata changes made; E6 16 MiB save remains compatible. GitHub CI https://github.com/DevElectrum/xgba/actions/runs/41242131166 passed full headless/SDL emulator suite. User wants one short gameplay test, not repeated E6 tests. Companion game xgba-emerald-test branch xgba/e7-256mib builds sparse exact 256 MiB ROM and moves five actual worlds' geometry to these high addresses. After game full CI passes, user should only test Test Town witness (3,12) and World 20 rendering with a disposable E7 ROM/save, then move back to Grand Anthology.
 
