@@ -1,5 +1,14 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: E5 emulator persistence regression and safer detection
+
+- Active E5 branch `xgba/e5-save-expansion` now at commit `0a0a1e5ff82ba807944612dec3f8463cbda3b2c5`.
+- Full v1 E5 superblock validation now checks the 24-byte header (magic, version, 128 KiB native size, 1 MiB size, CRC32) and accepts a surviving duplicate at 0xFF000. Simple 8-byte magic match is no longer enough to enable 0x0F writes.
+- New `GBACore.e5SavedataPersistent` test creates an E5 ROM and temp 1 MiB save, writes through CPU 8-bit `0x0F` access, checks bounds, unloads/reopens the save and verifies persistence, tests backup superblock recovery, and verifies E5 maps fail closed after both headers are damaged.
+- **Verified:** green full emulator CI: https://github.com/DevElectrum/xgba/actions/runs/41172551382 (16/16 CTest suites).
+- Emerald integration work exists separately on `DevElectrum/xgba-emerald-test@xgba/e5-expanded-save`, with guest API plus NPC writer/auditor. Do not declare full E5 user acceptance until Emerald's current ROM build is green and a copy-only gameplay save/restart acceptance test is completed.
+- No edits to master, no Grand Anthology changes, no modifications of user save files.
+
 Updated: 2026-10-30
 
 ## E5 opt-in expanded save bridge started (2026-10-30)
