@@ -1,0 +1,100 @@
+name: XGBA release candidate desktop builds
+on:
+  push:
+    branches:
+      - release/xgba-v0.1.0
+    paths-ignore:
+      - '**/*.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  linux-desktop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt, SDL and Debian packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config zlib1g-dev libsdl2-dev libcmocka-dev qt6-base-dev qt6-multimedia-dev libqt6opengl6-dev qt6-l10n-tools dpkg-dev
+      - name: Configure XGBA desktop and CI tests
+        run: |
+          cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DM_CORE_GBA=ON -DM_CORE_GB=ON -DBUILD_QT=ON -DBUILD_SDL=ON -DSDL_VERSION=2 -DFORCE_QT_VERSION=6 -DBUILD_HEADLESS=ON -DBUILD_SUITE=ON -DENABLE_SCRIPTING=OFF -DUSE_FFMPEG=OFF -DUSE_EDITLINE=OFF -DUSE_DISCORD_RPC=OFF
+      - name: Compile release targets and tests
+        run: cmake --build build-release --parallel 2
+      - name: Confirm renamed applications
+        run: |
+          test -x build-release/qt/xgba-qt
+          test -x build-release/sdl/xgba-sdl
+          test -x build-release/xgba-headless
+          test ! -e build-release/qt/mgba-qt
+      - name: Validate original and XGBA cartridge behavior
+        env:
+          XGBA_TEST_ROM: ${{ github.workspace }}/build-release/xgba-integration.gba
+          XGBA_LEGACY_ROM: ${{ github.workspace }}/build-release/legacy-integration.gba
+        run: |
+          python3 tools/xgba_generate_test_rom.py "$XGBA_TEST_ROM"
+          python3 tools/xgba_generate_test_rom.py --legacy "$XGBA_LEGACY_ROM"
+          python3 tools/xgba_check_fast_forward.py
+          ctest --test-dir build-release --output-on-failure
+      - name: Build Debian release packages
+        run: |
+          cd build-release
+          cpack -G DEB
+      - name: Verify application metadata and publish artifacts
+        run: |
+          mkdir -p dist
+          find build-release -maxdepth 1 -name '*.deb' -exec cp '{}' dist/ \;
+          test -n "$(find dist -name '*.deb' -print -quit)"
+          (cd dist && sha256sum *.deb > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xgba-linux-deb
+          path: dist/*
+          if-no-files-found: error
+
+  windows-desktop:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtmultimedia
+      - name: Configure XGBA Qt for Windows
+        shell: pwsh
+        run: >
+          cmake -S . -B build-win -G "Visual Studio 17 2022" -A x64
+          -DM_CORE_GBA=ON -DM_CORE_GB=ON -DBUILD_QT=ON -DBUILD_SDL=OFF
+          -DFORCE_QT_VERSION=6 -DBUILD_SHARED=OFF -DBUILD_STATIC=ON
+          -DENABLE_SCRIPTING=OFF -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF
+          -DUSE_ZLIB=OFF -DUSE_MINIZIP=OFF -DUSE_LIBZIP=OFF -DUSE_LZMA=OFF -DUSE_PNG=OFF
+          -DUSE_EDITLINE=OFF -DBUILD_SUITE=OFF
+      - name: Build XGBA Windows GUI
+        shell: pwsh
+        run: cmake --build build-win --config Release --target xgba-qt --parallel 2
+      - name: Deploy independent Qt application
+        shell: pwsh
+        run: |
+          $app = Get-ChildItem -Path build-win -Filter xgba-qt.exe -Recurse | Select-Object -First 1
+          if (-not $app) { throw "xgba-qt.exe not found" }
+          New-Item -ItemType Directory -Force dist/XGBA | Out-Null
+          Copy-Item $app.FullName dist/XGBA/xgba-qt.exe
+          windeployqt --release --no-translations --dir dist/XGBA dist/XGBA/xgba-qt.exe
+          Copy-Item LICENSE dist/XGBA/LICENSE
+          Copy-Item README.md dist/XGBA/README.md
+          Compress-Archive -Path dist/XGBA -DestinationPath dist/XGBA-windows-x64.zip
+          (Get-FileHash dist/XGBA-windows-x64.zip -Algorithm SHA256).Hash.ToLower() + "  XGBA-windows-x64.zip" | Set-Content dist/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xgba-windows-portable
+          path: |
+            dist/XGBA-windows-x64.zip
+            dist/SHA256SUMS
+          if-no-files-found: error

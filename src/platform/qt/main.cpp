@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	QTranslator langTranslator;
-	if (langTranslator.load(locale, "mgba", "-", ":/translations/")) {
+	if (langTranslator.load(locale, "xgba", "-", ":/translations/")) {
 		application.installTranslator(&langTranslator);
 	}
 

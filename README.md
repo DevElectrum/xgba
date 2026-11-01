@@ -11,7 +11,7 @@ It supports ordinary GBA games and opt-in **XGBA256** cartridges, with images up
 - `xgba-headless`: optional headless tool.
 - `xgba`: emulator library and build target, not a GUI executable.
 
-Launch with `xgba-qt /path/to/game.gba` or `xgba-sdl /path/to/game.gba`. Use `--help` for options. The original mGBA logo artwork is temporarily retained, but executable identity, desktop integration and configuration paths are independent.
+Launch with `xgba-qt /path/to/game.gba` or `xgba-sdl /path/to/game.gba`. Use `--help` for options. The original mGBA logo artwork is temporarily retained, but executable identity, desktop integration and configuration paths are independent. Localized mGBA translation catalogs are not loaded until they can be rebranded accurately.
 
 ## Build on Linux
 

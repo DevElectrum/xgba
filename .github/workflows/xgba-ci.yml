@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - release/xgba-v0.1.0
       - xgba/p0-foundation
       - xgba/p0-validation-20261030
       - xgba/p1-fast-forward
@@ -73,6 +74,6 @@ jobs:
 
       - name: Verify headless and SDL desktop emulator builds
         run: |
-          test -x build-xgba/mgba-headless
-          test -x build-xgba/sdl/mgba
+          test -x build-xgba/xgba-headless
+          test -x build-xgba/sdl/xgba-sdl
 

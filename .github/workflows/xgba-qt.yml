@@ -3,7 +3,7 @@ name: XGBA Qt desktop CI
 on:
   push:
     branches:
-      - xgba/p1-fast-forward
+      - release/xgba-v0.1.0
   pull_request:
     branches:
       - xgba/p0-validation-20261030
@@ -43,7 +43,7 @@ jobs:
             -DBUILD_SUITE=OFF
 
       - name: Compile XGBA Qt frontend
-        run: cmake --build build-xgba-qt --target mgba-qt --parallel 2
+        run: cmake --build build-xgba-qt --target xgba-qt --parallel 2
 
       - name: Check Qt executable exists
-        run: test -x build-xgba-qt/qt/mgba-qt
+        run: test -x build-xgba-qt/qt/xgba-qt

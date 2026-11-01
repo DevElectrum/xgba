@@ -479,7 +479,7 @@ void ReportView::rebuildModel() {
 }
 
 void ReportView::openBugReportPage() {
-	QDesktopServices::openUrl(QUrl("https://mgba.io/i/"));
+	QDesktopServices::openUrl(QUrl("https://github.com/DevElectrum/xgba/issues/new"));
 }
 
 void ReportView::addCpuInfo(QStringList& report) {
