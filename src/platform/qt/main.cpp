@@ -134,6 +134,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	QTranslator langTranslator;
+	// Use only XGBA catalogs. Historical upstream mGBA strings must not leak into the rebranded UI.
 	if (langTranslator.load(locale, "xgba", "-", ":/translations/")) {
 		application.installTranslator(&langTranslator);
 	}
