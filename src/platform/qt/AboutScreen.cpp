@@ -20,7 +20,7 @@ AboutScreen::AboutScreen(QWidget* parent)
 	m_ui.patronsHeader->hide();
 	m_ui.patrons->hide();
 
-	QPixmap logo(":/res/mgba-1024.png");
+	QPixmap logo(":/res/xgba-about.png");
 	logo = logo.scaled(m_ui.logo->minimumSize() * devicePixelRatio(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
 	logo.setDevicePixelRatio(devicePixelRatio());
 	m_ui.logo->setPixmap(logo);

@@ -1,4 +1,4 @@
-IDI_ICON1 ICON DISCARDABLE "${CMAKE_SOURCE_DIR}/res/mgba.ico"
+IDI_ICON1 ICON DISCARDABLE "${CMAKE_BINARY_DIR}/res/xgba.ico"
 
 #include <windows.h>
 

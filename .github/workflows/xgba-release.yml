@@ -73,7 +73,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not $env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT = 'C:\\vcpkg' }
-          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install libepoxy:x64-windows
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install libepoxy:x64-windows libzip:x64-windows
       - name: Configure XGBA Qt for Windows
         shell: pwsh
         run: >
@@ -82,7 +82,7 @@ jobs:
           -DM_CORE_GBA=ON -DM_CORE_GB=ON -DBUILD_QT=ON -DBUILD_SDL=OFF
           -DFORCE_QT_VERSION=6 -DBUILD_SHARED=OFF -DBUILD_STATIC=ON
           -DENABLE_SCRIPTING=OFF -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF
-          -DUSE_ZLIB=OFF -DUSE_MINIZIP=OFF -DUSE_LIBZIP=OFF -DUSE_LZMA=OFF -DUSE_PNG=OFF
+          -DUSE_ZLIB=ON -DUSE_MINIZIP=OFF -DUSE_LIBZIP=ON -DUSE_LZMA=OFF -DUSE_PNG=OFF
           -DUSE_EDITLINE=OFF -DBUILD_SUITE=OFF
       - name: Build XGBA Windows GUI
         shell: pwsh
@@ -98,6 +98,7 @@ jobs:
           $epoxy = Get-ChildItem "C:/vcpkg/installed/x64-windows/bin" -Filter "*epoxy*.dll" | Select-Object -First 1
           if (-not $epoxy) { throw "libepoxy runtime not found" }
           Copy-Item $epoxy.FullName dist/XGBA/
+          Get-ChildItem "C:/vcpkg/installed/x64-windows/bin" -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName dist/XGBA/ -Force }
           Copy-Item LICENSE dist/XGBA/LICENSE
           Copy-Item README.md dist/XGBA/README.md
           Compress-Archive -Path dist/XGBA -DestinationPath dist/XGBA-windows-x64.zip

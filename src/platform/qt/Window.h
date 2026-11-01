@@ -226,7 +226,7 @@ private:
 #endif
 	LoadSaveState* m_stateWindow = nullptr;
 	WindowBackground* m_screenWidget;
-	QPixmap m_logo{":/res/mgba-1024.png"};
+	QPixmap m_logo{":/res/xgba-about.png"};
 	ConfigController* m_config;
 	InputController m_inputController;
 	QList<qint64> m_frameList;

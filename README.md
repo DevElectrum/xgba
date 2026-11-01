@@ -11,11 +11,11 @@ It supports ordinary GBA games and opt-in **XGBA256** cartridges, with images up
 - `xgba-headless`: optional headless tool.
 - `xgba-sdl`: CMake target name for the SDL executable; the installed command is `xgba`.
 
-Launch with `xgba-qt /path/to/game.gba` or `xgba /path/to/game.gba`. Use `--help` for options. The original mGBA logo artwork is temporarily retained, but executable identity, desktop integration and configuration paths are independent. Localized mGBA translation catalogs are not loaded until they can be rebranded accurately.
+Launch with `xgba-qt /path/to/game.gba` or `xgba /path/to/game.gba`. Use `--help` for options. The purple XGBA handheld identity is integrated across the empty-screen artwork, About view, app/window icons, desktop launcher, and native packaging. XGBA retains upstream mGBA copyright and MPL-2.0 notices. Localized mGBA translation catalogs are not loaded until they can be rebranded accurately.
 
 ## Build on Linux
 
-On Ubuntu/Pop!_OS install CMake, Ninja, C/C++ development tools, Qt 6, SDL2 and zlib:
+On Ubuntu/Pop!_OS install CMake, Ninja, C/C++ development tools, Qt 6, SDL2, zlib and Python 3:
 
 ```sh
 sudo apt-get install build-essential cmake ninja-build pkg-config zlib1g-dev libsdl2-dev qt6-base-dev qt6-multimedia-dev libqt6opengl6-dev qt6-l10n-tools

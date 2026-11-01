@@ -1,5 +1,9 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: NEW PURPLE HANDHELD BRAND ASSETS
+
+User approved the purple handheld and XGBA wordmark generated for the desktop icon/empty-screen logo. Source crops committed as `res/xgba-icon.png` and `res/xgba-about.png`. These two use the exact user-approved generated image (size-reduced and palette-optimized for distributable packages). Application image resources, macOS ICNS generation, Windows ICO generation, and Linux desktop icon now share this identity; upstream original logos remain in source for provenance but must not be used in visible XGBA UI. Native icon generator uses Python 3 standard library and runs during Qt CMake configuration. Windows ZIP support required by Vita forwarder is supplied by vcpkg libzip; do not delete optional forwarder code. Current release qualification CI must be rechecked after branch update. Core E7 remains untouched.
+
 ## 2026-10-31: ACTIVE XGBA DESKTOP RELEASE REBRAND (logo unchanged)
 
 **New primary task:** User requested an application-ready, completely rebranded XGBA release, preserving original logo and icon assets **without modification**. Active release branch `release/xgba-v0.1.0` based on accepted E7 `9aa5e11e`. Do not merge into `master`, rewrite E7, or touch user saves/ROMs.

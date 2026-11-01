@@ -4,7 +4,7 @@ Active working branch: `release/xgba-v0.1.0`, preserved base `xgba/e7-accepted-2
 
 ## Scope
 
-- Rebrand visible product identity and terminal commands to XGBA, leaving **all existing logos and icon assets unchanged**.
+- Rebrand visible product identity and terminal commands to XGBA, using the approved purple handheld XGBA artwork. Retain upstream originals for license/provenance only.
 - SDL executable `xgba`, Qt executable `xgba-qt`, headless optional `xgba-headless`; build target `xgba-sdl`.
 - Separate config and package IDs from upstream mGBA. Keep upstream MPL-2.0 attribution and internal include/library ABI intact.
 - Disable mGBA's update mechanism and do not display untranslated upstream localized XGBA branding.
