@@ -27,7 +27,7 @@ jobs:
       - name: Confirm renamed applications
         run: |
           test -x build-release/qt/xgba-qt
-          test -x build-release/sdl/xgba-sdl
+          test -x build-release/sdl/xgba
           test -x build-release/xgba-headless
           test ! -e build-release/qt/mgba-qt
       - name: Validate original and XGBA cartridge behavior
