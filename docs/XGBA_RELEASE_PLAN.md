@@ -29,3 +29,5 @@ Active working branch: `release/xgba-v0.1.0`, preserved base `xgba/e7-accepted-2
 ## Known follow-on scope
 
 Portable AppImage, Windows graphical installer, release signing/notarization, update feeds and retranslated locales may follow release-candidate qualification. They are not demonstrated by merely building the renamed Qt executable.
+
+Native XGBA icons are generated from the committed 128px approved handheld icon. The Windows installer uses the generated XGBA icon and default Inno Setup wizard artwork instead of upstream mGBA installer artwork.

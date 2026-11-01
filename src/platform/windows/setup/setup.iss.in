@@ -17,8 +17,8 @@
 
 [Setup]
 SourceDir={#BinDir}
-SetupIconFile={#SetupDir}\setup.ico
-WizardImageFile={#SetupDir}\wizard-image.bmp
+SetupIconFile=${CMAKE_BINARY_DIR}/res/xgba.ico
+
 
 AppName={#AppName}
 AppVersion={#AppVer}
