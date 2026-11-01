@@ -32,6 +32,8 @@ jobs:
           test ! -e build-release/qt/mgba-qt
       - name: Validate original and XGBA cartridge behavior
         env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build-release
+          QT_QPA_PLATFORM: offscreen
           XGBA_TEST_ROM: ${{ github.workspace }}/build-release/xgba-integration.gba
           XGBA_LEGACY_ROM: ${{ github.workspace }}/build-release/legacy-integration.gba
         run: |
@@ -67,10 +69,16 @@ jobs:
           target: desktop
           arch: win64_msvc2022_64
           modules: qtmultimedia
+      - name: Install Windows OpenGL loader
+        shell: pwsh
+        run: |
+          if (-not $env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT = 'C:\\vcpkg' }
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install libepoxy:x64-windows
       - name: Configure XGBA Qt for Windows
         shell: pwsh
         run: >
           cmake -S . -B build-win -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DM_CORE_GBA=ON -DM_CORE_GB=ON -DBUILD_QT=ON -DBUILD_SDL=OFF
           -DFORCE_QT_VERSION=6 -DBUILD_SHARED=OFF -DBUILD_STATIC=ON
           -DENABLE_SCRIPTING=OFF -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF
@@ -87,6 +95,9 @@ jobs:
           New-Item -ItemType Directory -Force dist/XGBA | Out-Null
           Copy-Item $app.FullName dist/XGBA/xgba-qt.exe
           windeployqt --release --no-translations --dir dist/XGBA dist/XGBA/xgba-qt.exe
+          $epoxy = Get-ChildItem "C:/vcpkg/installed/x64-windows/bin" -Filter "*epoxy*.dll" | Select-Object -First 1
+          if (-not $epoxy) { throw "libepoxy runtime not found" }
+          Copy-Item $epoxy.FullName dist/XGBA/
           Copy-Item LICENSE dist/XGBA/LICENSE
           Copy-Item README.md dist/XGBA/README.md
           Compress-Archive -Path dist/XGBA -DestinationPath dist/XGBA-windows-x64.zip

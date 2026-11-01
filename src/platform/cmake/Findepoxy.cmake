@@ -1,10 +1,6 @@
-find_path(EPOXY_INCLUDE_DIRS NAMES epoxy/gl.h PATH_SUFFIX include)
-find_library(EPOXY_LIBRARIES NAMES epoxy_0 PATH_SUFFIX lib)
+# Locate libepoxy in an ordinary system prefix or a vcpkg installation.
+find_path(epoxy_INCLUDE_DIRS NAMES epoxy/gl.h)
+find_library(epoxy_LIBRARIES NAMES epoxy libepoxy)
 
-if (NOT EPOXY_LIBRARIES)
-	find_library(EPOXY_LIBRARIES NAMES epoxy PATH_SUFFIX lib)
-endif()
-
-if(EPOXY_LIBRARIES AND EPOXY_INCLUDE_DIRS)
-    set(epoxy_FOUND TRUE)
-endif()
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(epoxy DEFAULT_MSG epoxy_INCLUDE_DIRS epoxy_LIBRARIES)
