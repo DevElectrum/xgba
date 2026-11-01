@@ -1,5 +1,13 @@
 # XGBA living handoff for future Astras
 
+## 2026-10-31: ACTIVE XGBA DESKTOP RELEASE REBRAND (logo unchanged)
+
+**New primary task:** User requested an application-ready, completely rebranded XGBA release, preserving original logo and icon assets **without modification**. Active release branch `release/xgba-v0.1.0` based on accepted E7 `9aa5e11e`. Do not merge into `master`, rewrite E7, or touch user saves/ROMs.
+
+Commits: `311157af` first application identity, `bc5083b7` version, bug report, release CI; `14d3e97d` standardized SDL executable `xgba`, Qt `xgba-qt`; `749c3e41` Qt 6.8.3 windows release workflow and renamed Windows RC template. Public product name XGBA; native configs use `binaryName=xgba` or `projectName=XGBA`; distinct Linux application ID `io.github.DevElectrum.XGBA`; Windows installer name XGBA. Legacy icons `res/mgba-*.png`, `res/mgba.icns`, `res/mgba.ico` remain intact on purpose; internal mGBA library API, licenses and copyright stay intact. All old upstream automatic update traffic disabled, and update controls disabled. Bug-report links now go to DevElectrum/xgba. Historical mGBA translations excluded from loaded UI until proper localized XGBA catalogs exist.
+
+Baseline CMake+core CI passed on `14d3e97d`: https://github.com/DevElectrum/xgba/actions/runs/41262048212 . Latest Qt GUI and Linux/Windows packaging CI runs: https://github.com/DevElectrum/xgba/actions . **At time of this note, no installer/AppImage or v0.1.0 GitHub Release is published, and desktop smoke acceptance is not confirmed.** Do not invent build success; read job logs, fix packaging failures, and request only one focused user-facing app smoke after green CI. Generated artifacts are CI-only and include no copyrighted ROMs. Do not conflate application release qualification with already-accepted emulator E7 capacity proof.
+
 ## 2026-10-31: E7 GAMEPLAY ACCEPTED, NO FURTHER ROM CAPACITY TESTS
 
 User screenshot in Test Town: **"E7: 256 MiB ROM address test! ALL 5 remote windows PASS!"** User reports World 20 maps render fine. This completes exactly the agreed E7 runtime acceptance (direct in-game read to 0x1FFFFFFF plus actual high-address map geometry at World 20) after successful game https://github.com/DevElectrum/xgba-emerald-test/actions/runs/41242174037 and emulator https://github.com/DevElectrum/xgba/actions/runs/41242131166 CI runs. E7 is accepted as experimental 256 MiB XGBA256 ROM capacity foundation. No emulator runtime changes or E6 save conversion were made for E7. Preserve E5/E6 accepted branches, original saves, and freeze E7 as xgba/e7-accepted-20261031. Do not request further E7 or E6 routine QA. Next engineering target is Grand Anthology when user specifies integration.
