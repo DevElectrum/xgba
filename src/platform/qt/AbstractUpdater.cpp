@@ -19,7 +19,12 @@ AbstractUpdater::AbstractUpdater(QObject* parent)
 }
 
 void AbstractUpdater::checkUpdate() {
-	QNetworkReply* reply = GBAApp::app()->httpGet(manifestLocation());
+	const QUrl url = manifestLocation();
+	if (!url.isValid() || url.isEmpty()) {
+		emit updateAvailable(false);
+		return;
+	}
+	QNetworkReply* reply = GBAApp::app()->httpGet(url);
 	chaseRedirects(reply, &AbstractUpdater::manifestDownloaded);
 }
 

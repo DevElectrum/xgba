@@ -435,7 +435,7 @@ void Window::selectSave(bool temporary) {
 
 void Window::selectState(bool load) {
 	QStringList formats{"*.ss0", "*.ss1", "*.ss2", "*.ss3", "*.ss4", "*.ss5", "*.ss6", "*.ss7", "*.ss8", "*.ss9"};
-	QString filter = tr("mGBA save state files (%1)").arg(formats.join(QChar(' ')));
+	QString filter = tr("XGBA save state files (%1)").arg(formats.join(QChar(' ')));
 	if (load) {
 		QString filename = GBAApp::app()->getOpenFileName(this, tr("Select save state"), filter);
 		if (!filename.isEmpty()) {

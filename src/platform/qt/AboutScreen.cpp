@@ -17,6 +17,8 @@ AboutScreen::AboutScreen(QWidget* parent)
 	: QDialog(parent, Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint)
 {
 	m_ui.setupUi(this);
+	m_ui.patronsHeader->hide();
+	m_ui.patrons->hide();
 
 	QPixmap logo(":/res/mgba-1024.png");
 	logo = logo.scaled(m_ui.logo->minimumSize() * devicePixelRatio(), Qt::KeepAspectRatio, Qt::SmoothTransformation);

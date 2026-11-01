@@ -10,8 +10,8 @@ BEGIN
     BEGIN
         BLOCK "040904E4"
         BEGIN
-            VALUE "CompanyName",        "endrift"
-            VALUE "FileDescription",    "${PROJECT_NAME} Game Boy Advance emulator"
+            VALUE "CompanyName",        "DevElectrum"
+            VALUE "FileDescription",    "XGBA Game Boy Advance emulator"
             VALUE "FileVersion",        "${LIB_VERSION_STRING}.0"
             VALUE "InternalName",       "${BINARY_NAME}"
             VALUE "LegalCopyright",     "(c) 2013 - 2021 Jeffrey Pfau"

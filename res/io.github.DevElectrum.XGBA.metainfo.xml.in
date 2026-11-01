@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component type="desktop-application">
+  <id>io.github.DevElectrum.XGBA</id>
+  <name>XGBA</name>
+  <summary>Game Boy Advance emulator with extended ROM and save support</summary>
+  <developer_name>DevElectrum</developer_name>
+  <launchable type="desktop-id">io.github.DevElectrum.XGBA.desktop</launchable>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MPL-2.0</project_license>
+  <description><p>XGBA is an open-source fork of mGBA supporting opt-in extended cartridges up to 256 MiB. Ordinary GBA cartridges retain normal behavior, and extended saves require explicit versioned initialization.</p></description>
+  @APPSTREAM_RELEASES@
+  <url type="homepage">https://github.com/DevElectrum/xgba</url>
+  <url type="bugtracker">https://github.com/DevElectrum/xgba/issues</url>
+  <url type="vcs-browser">https://github.com/DevElectrum/xgba</url>
+  <categories><category>Game</category><category>Emulator</category></categories>
+  <supports><control>pointing</control><control>keyboard</control><control>gamepad</control></supports>
+  <content_rating type="oars-1.1"/>
+  <provides><binary>xgba-qt</binary><binary>xgba-sdl</binary><mediatype>application/x-gameboy-advance-rom</mediatype><mediatype>application/x-gba-rom</mediatype></provides>
+</component>

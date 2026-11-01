@@ -99,9 +99,7 @@ GBAApp::GBAApp(int& argc, char* argv[], ConfigController* config)
 	cleanupAfterUpdate();
 
 	connect(this, &GBAApp::aboutToQuit, this, &GBAApp::cleanup);
-	if (m_configController->getOption("updateAutoCheck", 0).toInt()) {
-		QMetaObject::invokeMethod(&m_updater, "checkUpdate", Qt::QueuedConnection);
-	}
+	// No automatic update checks until a dedicated XGBA update feed exists.
 }
 
 void GBAApp::cleanup() {
@@ -274,7 +272,7 @@ QNetworkAccessManager* GBAApp::netman() {
 QNetworkReply* GBAApp::httpGet(const QUrl& url) {
 	QNetworkRequest req(url);
 	req.setHeader(QNetworkRequest::UserAgentHeader,
-	              QString("%1/%2 (+https://mgba.io) is definitely not Mozilla/5.0")
+	              QString("%1/%2 (+https://github.com/DevElectrum/xgba) is definitely not Mozilla/5.0")
 	              .arg(projectName)
 	              .arg(projectVersion));
 	return m_netman.get(req);

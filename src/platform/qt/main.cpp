@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef Q_OS_UNIX
-	QApplication::setDesktopFileName(QString("io.mgba.mGBA"));
+	QApplication::setDesktopFileName(QString("io.github.DevElectrum.XGBA"));
 #endif
 
 	QTranslator qtTranslator;
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	QTranslator langTranslator;
-	if (langTranslator.load(locale, binaryName, "-", ":/translations/")) {
+	if (langTranslator.load(locale, "mgba", "-", ":/translations/")) {
 		application.installTranslator(&langTranslator);
 	}
 

@@ -220,6 +220,8 @@ SettingsView::SettingsView(ConfigController* controller, InputController* inputC
 		}
 	});
 	m_ui.availVersion->setText(updater->updateInfo());
+	m_ui.update->setEnabled(false);
+	m_ui.currentChannel->setText(tr("Updates disabled in XGBA"));
 
 	// TODO: Move to reloadConfig()
 	QVariant cameraDriver = m_controller->getQtOption("cameraDriver");

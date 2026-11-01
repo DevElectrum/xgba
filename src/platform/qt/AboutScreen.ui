@@ -20,7 +20,7 @@
    <item row="4" column="1">
     <widget class="QLabel" name="extraLinks">
      <property name="text">
-      <string>&lt;a href=&quot;http://mgba.io/&quot;&gt;Website&lt;/a&gt; • &lt;a href=&quot;https://forums.mgba.io/&quot;&gt;Forums / Support&lt;/a&gt; • &lt;a href=&quot;https://patreon.com/mgba&quot;&gt;Donate&lt;/a&gt; • &lt;a href=&quot;https://github.com/mgba-emu/mgba/tree/{gitBranch}&quot;&gt;Source&lt;/a&gt;</string>
+      <string>&lt;a href=&quot;https://github.com/DevElectrum/xgba&quot;&gt;XGBA Source&lt;/a&gt; • &lt;a href=&quot;https://github.com/DevElectrum/xgba/issues&quot;&gt;Support&lt;/a&gt; • &lt;a href=&quot;https://github.com/mgba-emu/mgba&quot;&gt;Upstream mGBA&lt;/a&gt;</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -83,7 +83,7 @@
       </font>
      </property>
      <property name="text">
-      <string>© 2013 – {year} Jeffrey Pfau, licensed under the Mozilla Public License, version 2.0
+      <string>XGBA modifications © 2026 DevElectrum. Based on mGBA © 2013–{year} Jeffrey Pfau. Licensed under the Mozilla Public License 2.0.
 Game Boy Advance is a registered trademark of Nintendo Co., Ltd.</string>
      </property>
      <property name="alignment">
@@ -174,7 +174,7 @@ Game Boy Advance is a registered trademark of Nintendo Co., Ltd.</string>
    <item row="3" column="1">
     <widget class="QLabel" name="description">
      <property name="text">
-      <string>{projectName} is an open-source Game Boy Advance emulator</string>
+      <string>{projectName} is an open-source GBA emulator with extended-ROM support, based on mGBA.</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>

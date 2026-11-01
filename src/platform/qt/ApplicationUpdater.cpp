@@ -66,7 +66,7 @@ ApplicationUpdater::ApplicationUpdater(ConfigController* config, QObject* parent
 }
 
 QUrl ApplicationUpdater::manifestLocation() const {
-	return {"https://mgba.io/latest.ini"};
+	return QUrl(); // No dedicated XGBA update manifest yet.
 }
 
 QStringList ApplicationUpdater::listChannels() {
@@ -146,7 +146,7 @@ QString ApplicationUpdater::destination() const {
 	QFileInfo path(updateInfo().url.path());
 	QDir dir(ConfigController::cacheDir());
 	// QFileInfo::completeSuffix will eat all .'s in the filename...including
-	// ones in the version string, turning mGBA-1.0.0-win32.7z into
+	// ones in the version string, turning XGBA-1.0.0-win32.7z into
 	// 0.0-win32.7z instead of the intended .7z
 	// As a result, so we have to split out the complete suffix manually.
 	QString suffix(path.suffix());
