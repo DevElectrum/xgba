@@ -22,7 +22,7 @@ Active working branch: `release/xgba-v0.1.0`, preserved base `xgba/e7-accepted-2
 - Green latest CI on release branch, not an older commit.
 - A locally launched fresh XGBA Qt app reports XGBA/version, opens ROM file, inputs/audio and fast-forward work; an ordinary GBA cartridge boots.
 - An XGBA256 cartridge accesses high-ROM geometry, saves a disposable copied 128 KiB game save, closes and relaunches without corruption.
-- Qt GUI executable, Linux desktop integration and Windows ZIP must match XGBA names. Logo is unchanged.
+- Qt GUI executable, Linux desktop integration and Windows ZIP must match XGBA names. Visible logo and native application icons show the approved XGBA purple handheld artwork.
 - Confirm that only XGBA owns its config directory, bug report URL and update behavior. Old mGBA and E5/E6 saves are left untouched.
 - Tag and GitHub publish `v0.1.0` only after these checks. Do not distribute user ROMs or copyright-protected BIOS content.
 
