@@ -88,7 +88,7 @@ Name: "gbafileassoc"; Description: "{cm:AssocFileExtension,{#AppName},Game Boy A
 
 [Files]
 Source: "{#BinDir}\{#AppName2}-qt.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BinDir}\{#AppName2}.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\{#AppName2}-sdl.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\CHANGES.txt"; DestDir: "{app}\"; Flags: ignoreversion isreadme
 Source: "{#BinDir}\LICENSE.txt"; DestDir: "{app}\"; Flags: ignoreversion
 Source: "{#ResDir}\nointro.dat"; DestDir: "{app}\"; Flags: ignoreversion

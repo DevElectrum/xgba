@@ -6,12 +6,12 @@ It supports ordinary GBA games and opt-in **XGBA256** cartridges, with images up
 
 ## Application commands
 
-- `xgba-qt`: Qt desktop GUI, recommended.
-- `xgba`: SDL frontend and terminal command.
+- `xgba`: installed desktop GUI launcher; passes arguments to `xgba-qt`.
+- `xgba-qt`: full Qt desktop GUI, and standalone development executable.
+- `xgba-sdl`: optional SDL frontend and its CMake target.
 - `xgba-headless`: optional headless tool.
-- `xgba-sdl`: CMake target name for the SDL executable; the installed command is `xgba`.
 
-Launch with `xgba-qt /path/to/game.gba` or `xgba /path/to/game.gba`. Use `--help` for options. The purple XGBA handheld identity is integrated across the empty-screen artwork, About view, app/window icons, desktop launcher, and native packaging. XGBA retains upstream mGBA copyright and MPL-2.0 notices. Localized mGBA translation catalogs are not loaded until they can be rebranded accurately.
+After installation, launch the GUI with `xgba` or `xgba /path/to/game.gba`. The SDL build is available as `xgba-sdl`. Use `--help` for options. The purple XGBA handheld identity is integrated across the empty-screen artwork, About view, app/window icons, desktop launcher, and native packaging. XGBA retains upstream mGBA copyright and MPL-2.0 notices. Localized mGBA translation catalogs are not loaded until they can be rebranded accurately.
 
 ## Build on Linux
 
@@ -37,3 +37,18 @@ Experimental extended saves can require a separate, version-specific conversion 
 ## Credits and license
 
 XGBA is derived from [mGBA](https://github.com/mgba-emu/mgba) by Jeffrey Pfau and contributors. Original copyright and [MPL 2.0](LICENSE) notices remain intact. XGBA modifications © 2026 DevElectrum. XGBA is not affiliated with Nintendo or the upstream mGBA team.
+
+## Install locally on Pop!_OS / Ubuntu
+
+From a fresh separate checkout (not your preserved E7 development worktree):
+
+```sh
+cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_QT=ON -DBUILD_SDL=ON -DSDL_VERSION=2 -DFORCE_QT_VERSION=6 -DENABLE_SCRIPTING=OFF -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF
+cmake --build build-release --parallel 4
+sudo cmake --install build-release
+sudo ldconfig
+hash -r
+xgba
+```
+
+The system install provides `xgba` (GUI launcher), `xgba-qt`, and `xgba-sdl`, plus an application-menu desktop entry. Save files and configuration stay in your home directory, separate from upstream mGBA. `/usr/local/bin` must appear in `PATH`. A local install manifest is written to `build-release/install_manifest.txt` for auditing the installed paths; do not blindly delete shared libraries that another application may use.

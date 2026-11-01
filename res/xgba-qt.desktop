@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
 Icon=io.github.DevElectrum.XGBA
-Exec=xgba-qt %f
+Exec=xgba %f
 Terminal=false
 Type=Application
 Name=XGBA

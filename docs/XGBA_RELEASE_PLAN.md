@@ -31,3 +31,7 @@ Active working branch: `release/xgba-v0.1.0`, preserved base `xgba/e7-accepted-2
 Portable AppImage, Windows graphical installer, release signing/notarization, update feeds and retranslated locales may follow release-candidate qualification. They are not demonstrated by merely building the renamed Qt executable.
 
 Native XGBA icons are generated from the committed 128px approved handheld icon. The Windows installer uses the generated XGBA icon and default Inno Setup wizard artwork instead of upstream mGBA installer artwork.
+
+## Linux install launcher contract
+
+On Linux, `xgba` is a tiny executable shell launcher installed with the Qt package and using `exec xgba-qt "$@"`; `xgba-qt` remains available directly. SDL installs as `xgba-sdl` so installing both frontends cannot overwrite the GUI launcher. Desktop `Exec=xgba %f` uses the same entrypoint. No in-tree build executable alias is implied, only installed commands. Install with `sudo cmake --install build-release` after a fresh CMake Release configure and full build, then `sudo ldconfig`. CI verifies staged executable paths and the launcher file.

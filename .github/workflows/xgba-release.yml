@@ -27,7 +27,7 @@ jobs:
       - name: Confirm renamed applications
         run: |
           test -x build-release/qt/xgba-qt
-          test -x build-release/sdl/xgba
+          test -x build-release/sdl/xgba-sdl
           test -x build-release/xgba-headless
           test ! -e build-release/qt/mgba-qt
       - name: Validate original and XGBA cartridge behavior
@@ -41,6 +41,83 @@ jobs:
           python3 tools/xgba_generate_test_rom.py --legacy "$XGBA_LEGACY_ROM"
           python3 tools/xgba_check_fast_forward.py
           ctest --test-dir build-release --output-on-failure
+      - name: Validate installed GUI command and desktop integration
+        run: |
+          DESTDIR="$GITHUB_WORKSPACE/staging" cmake --install build-release
+          test -x staging/usr/bin/xgba
+          test -x staging/usr/bin/xgba-qt
+          test -x staging/usr/bin/xgba-sdl
+          grep -q 'exec xgba-qt' staging/usr/bin/xgba
+          grep -q '^Exec=xgba %f        run: |
+          cd build-release
+          cpack -G DEB
+      - name: Verify application metadata and publish artifacts
+        run: |
+          mkdir -p dist
+          find build-release -maxdepth 1 -name '*.deb' -exec cp '{}' dist/ \;
+          test -n "$(find dist -name '*.deb' -print -quit)"
+          (cd dist && sha256sum *.deb > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xgba-linux-deb
+          path: dist/*
+          if-no-files-found: error
+
+  windows-desktop:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtmultimedia
+      - name: Install Windows OpenGL loader
+        shell: pwsh
+        run: |
+          if (-not $env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT = 'C:\\vcpkg' }
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install libepoxy:x64-windows libzip:x64-windows
+      - name: Configure XGBA Qt for Windows
+        shell: pwsh
+        run: >
+          cmake -S . -B build-win -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          -DM_CORE_GBA=ON -DM_CORE_GB=ON -DBUILD_QT=ON -DBUILD_SDL=OFF
+          -DFORCE_QT_VERSION=6 -DBUILD_SHARED=OFF -DBUILD_STATIC=ON
+          -DENABLE_SCRIPTING=OFF -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF
+          -DUSE_ZLIB=ON -DUSE_MINIZIP=OFF -DUSE_LIBZIP=ON -DUSE_LZMA=OFF -DUSE_PNG=OFF
+          -DUSE_EDITLINE=OFF -DBUILD_SUITE=OFF
+      - name: Build XGBA Windows GUI
+        shell: pwsh
+        run: cmake --build build-win --config Release --target xgba-qt --parallel 2
+      - name: Deploy independent Qt application
+        shell: pwsh
+        run: |
+          $app = Get-ChildItem -Path build-win -Filter xgba-qt.exe -Recurse | Select-Object -First 1
+          if (-not $app) { throw "xgba-qt.exe not found" }
+          New-Item -ItemType Directory -Force dist/XGBA | Out-Null
+          Copy-Item $app.FullName dist/XGBA/xgba-qt.exe
+          windeployqt --release --no-translations --dir dist/XGBA dist/XGBA/xgba-qt.exe
+          $epoxy = Get-ChildItem "C:/vcpkg/installed/x64-windows/bin" -Filter "*epoxy*.dll" | Select-Object -First 1
+          if (-not $epoxy) { throw "libepoxy runtime not found" }
+          Copy-Item $epoxy.FullName dist/XGBA/
+          Get-ChildItem "C:/vcpkg/installed/x64-windows/bin" -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName dist/XGBA/ -Force }
+          Copy-Item LICENSE dist/XGBA/LICENSE
+          Copy-Item README.md dist/XGBA/README.md
+          Compress-Archive -Path dist/XGBA -DestinationPath dist/XGBA-windows-x64.zip
+          (Get-FileHash dist/XGBA-windows-x64.zip -Algorithm SHA256).Hash.ToLower() + "  XGBA-windows-x64.zip" | Set-Content dist/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xgba-windows-portable
+          path: |
+            dist/XGBA-windows-x64.zip
+            dist/SHA256SUMS
+          if-no-files-found: error
+ staging/usr/share/applications/io.github.DevElectrum.XGBA.desktop
+          test -f staging/usr/share/icons/hicolor/128x128/apps/io.github.DevElectrum.XGBA.png
       - name: Build Debian release packages
         run: |
           cd build-release
