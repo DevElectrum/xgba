@@ -1,5 +1,7 @@
 # Astra agent rules: XGBA emulator fork
 
+**Current R8 experimental checkpoint (Nov 2 UTC):** 4 MiB RAM source, DMA3, full-state/rewind and fail-closed bounds passed 16/16 CTest suites, CI https://github.com/DevElectrum/xgba/actions/runs/41439577345. Branch `xgba/r8-4mib-ram`, code `979c2470`. R8 is not yet Anthology gameplay accepted or merged. Keep accepted E7/rebrand, user saves, Mosaic and Anthology untouched until a separate explicitly guarded A2 integration. Read `docs/NEXT_ASTRA_HANDOFF.md` and `docs/XGBA_R8_RAM_PLAN.md` first.
+
 ## Mandatory E(i) design gate: performance and adversarial review
 
 **Standing rule from the user (2026-10-31):** Regieleki speed means *front-loaded engineering*, not shipping an avoidable bottleneck and asking the user to spend three rounds testing and optimizing every E(i). A working build is not complete until correctness, performance and failure behavior meet the agreed scope. Post-test optimization is allowed for genuine discoveries; predictable costs, compatibility risks, and obvious failure modes are planning oversights, not acceptable recurring follow-ups.

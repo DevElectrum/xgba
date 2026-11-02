@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - xgba/r8-4mib-ram
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
 permissions:
   contents: read
