@@ -217,10 +217,11 @@ struct GBACore {
 	bool hasOverride;
 	struct mDebuggerPlatform* debuggerPlatform;
 	struct mCheatDevice* cheatDevice;
-	struct mCoreMemoryBlock memoryBlocks[13];
+	struct mCoreMemoryBlock memoryBlocks[16];
 	size_t nMemoryBlocks;
 	int memoryBlockType;
 	bool memoryBlockIsXgba;
+	bool memoryBlockIsXgbaRam;
 };
 
 #define _MAX(A, B) ((A > B) ? (A) : (B))
@@ -1114,7 +1115,8 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 	struct GBACore* gbacore = (struct GBACore*) core;
 
 	if (gbacore->memoryBlockType != gba->memory.savedata.type
-	    || gbacore->memoryBlockIsXgba != (gba->memory.xgbaRom != NULL)) {
+	    || gbacore->memoryBlockIsXgba != (gba->memory.xgbaRom != NULL)
+	    || gbacore->memoryBlockIsXgbaRam != (gba->memory.xgbaRam != NULL)) {
 		switch (gba->memory.savedata.type) {
 		case GBA_SAVEDATA_SRAM:
 			memcpy(gbacore->memoryBlocks, _GBAMemoryBlocksSRAM, sizeof(_GBAMemoryBlocksSRAM));
@@ -1163,7 +1165,18 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 			gbacore->memoryBlocks[0].size = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM;
 		}
 		gbacore->memoryBlockType = gba->memory.savedata.type;
+		if (gba->memory.xgbaRam) {
+			struct mCoreMemoryBlock expanded = {
+				GBA_REGION_XGBA_RAM, "xram", "XGBA RAM", "R8 RAM (4MiB)",
+				GBA_BASE_XGBA_RAM, GBA_BASE_XGBA_RAM + GBA_SIZE_XGBA_RAM,
+				GBA_SIZE_XGBA_RAM, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED
+			};
+			gbacore->memoryBlocks[gbacore->nMemoryBlocks++] = expanded;
+			gbacore->memoryBlocks[0].end = GBA_BASE_XGBA_RAM + GBA_SIZE_XGBA_RAM;
+			gbacore->memoryBlocks[0].size = GBA_BASE_XGBA_RAM + GBA_SIZE_XGBA_RAM;
+		}
 		gbacore->memoryBlockIsXgba = gba->memory.xgbaRom != NULL;
+		gbacore->memoryBlockIsXgbaRam = gba->memory.xgbaRam != NULL;
 
 		mCALLBACKS_INVOKE(gba, memoryBlocksChanged);
 	}
@@ -1200,6 +1213,10 @@ void* _GBACoreGetMemoryBlock(struct mCore* core, size_t id, size_t* sizeOut) {
 	case GBA_REGION_ROM2:
 		*sizeOut = gba->memory.romSize;
 		return gba->memory.rom;
+	case GBA_REGION_XGBA_RAM:
+		if (!gba->memory.xgbaRam) return NULL;
+		*sizeOut = GBA_SIZE_XGBA_RAM;
+		return gba->memory.xgbaRam;
 	case GBA_REGION_XGBA_ROM:
 		*sizeOut = gba->memory.xgbaRomSize;
 		return gba->memory.xgbaRom;

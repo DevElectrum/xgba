@@ -65,7 +65,9 @@ uint32_t GBADMAWriteSAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMASAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA source address: 0x%08X", address);
 	}
-	if (dma > 0 && memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
+	if (dma == 3 && memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
+		memory->dma[dma].source = address & ~1U;
+	} else if (dma > 0 && memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
 	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
 		memory->dma[dma].source = address & ~1U;
 	} else {
@@ -79,7 +81,11 @@ uint32_t GBADMAWriteDAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMADAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA destination address: 0x%08X", address);
 	}
-	memory->dma[dma].dest = address & DMA_DST_MASK[dma];
+	if (dma == 3 && memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
+		memory->dma[dma].dest = address & ~1U;
+	} else {
+		memory->dma[dma].dest = address & DMA_DST_MASK[dma];
+	}
 	return memory->dma[dma].dest;
 }
 
@@ -106,6 +112,13 @@ uint16_t GBADMAWriteCNT_HI(struct GBA* gba, int dma, uint16_t control) {
 		control &= 0xF7E0;
 	} else {
 		control &= 0xFFE0;
+	}
+	// DMA0-2 cannot address the R8 extension. Reject rather than truncate.
+	if (dma < 3 && memory->xgbaRam
+	    && ((uint32_t)(currentDma->source - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM
+	        || (uint32_t)(currentDma->dest - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM)) {
+		control &= ~0x8000;
+		mLOG(GBA_DMA, WARN, "R8 RAM requires DMA3");
 	}
 	currentDma->reg = control;
 

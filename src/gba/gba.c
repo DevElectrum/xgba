@@ -174,6 +174,10 @@ void GBAUnloadROM(struct GBA* gba) {
 	gba->memory.xgbaRom = NULL;
 	gba->memory.xgbaRomOwned = false;
 	gba->memory.xgbaRomSize = 0;
+	if (gba->memory.xgbaRam) {
+		mappedMemoryFree(gba->memory.xgbaRam, GBA_SIZE_XGBA_RAM);
+		gba->memory.xgbaRam = NULL;
+	}
 	gba->memory.romSize = 0;
 	gba->memory.romMask = 0;
 	gba->isPristine = false;
@@ -558,7 +562,27 @@ bool GBALoadROM(struct GBA* gba, struct VFile* vf) {
 	}
 	GBAHardwareInit(&gba->memory.hw, &((uint16_t*) gba->memory.rom)[GPIO_REG_DATA >> 1]);
 	GBAUnlCartDetect(gba);
-	// TODO: error check
+	// R8 is a separate, explicit opt-in. The final 256 ROM bytes are reserved
+	// by the A1 packer; its last sixteen bytes remain the existing E7 probe.
+	if (gba->memory.xgbaRom && gba->memory.xgbaRomSize == GBA_SIZE_XGBA_ROM
+	    && ((const uint8_t*) gba->memory.rom)[0xBC] == 0xE6) {
+		const uint8_t* descriptor = gba->memory.xgbaRom + GBA_XGBA_RAM_DESCRIPTOR_OFFSET;
+		if (memcmp(descriptor, "XGBARAM8", 8) == 0) {
+			const uint8_t expected[8] = { 1, 0, 0, 0, 0, 0, 0x40, 0 };
+			if (memcmp(descriptor + 8, expected, sizeof(expected)) != 0) {
+				mLOG(GBA, WARN, "Unsupported XGBA RAM capability descriptor");
+				GBAUnloadROM(gba);
+				return false;
+			}
+			gba->memory.xgbaRam = anonymousMemoryMap(GBA_SIZE_XGBA_RAM);
+			if (!gba->memory.xgbaRam) {
+				mLOG(GBA, WARN, "XGBA R8 RAM allocation failed");
+				GBAUnloadROM(gba);
+				return false;
+			}
+			memset(gba->memory.xgbaRam, 0, GBA_SIZE_XGBA_RAM);
+		}
+	}
 	return true;
 }
 
