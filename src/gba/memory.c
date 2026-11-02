@@ -301,7 +301,12 @@ static void GBASetActiveRegion(struct ARMCore* cpu, uint32_t address) {
 		} else {
 			cpu->memory.activeMask &= -WORD_SIZE_ARM;
 		}
-		if (address >= GBA_BASE_XGBA_ROM && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		if ((address >> BASE_OFFSET) == GBA_REGION_XGBA_RAM) {
+			if (memory->xgbaRam
+			    && (uint32_t) (address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
+				return;
+			}
+		} else if (address >= GBA_BASE_XGBA_ROM && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
 			if (memory->xgbaRom && (size_t) (address - GBA_BASE_XGBA_ROM) < memory->xgbaRomSize) {
 				return;
 			}
@@ -333,13 +338,13 @@ static void GBASetActiveRegion(struct ARMCore* cpu, uint32_t address) {
 		cpu->memory.activeMask = GBA_SIZE_BIOS - 1;
 		break;
 	case GBA_REGION_XGBA_RAM:
-		if (memory->xgbaRam) {
+		if (memory->xgbaRam
+		    && (uint32_t) (address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
 			cpu->memory.accessSource = mACCESS_PROGRAM;
 			cpu->memory.activeRegion = (uint32_t*) memory->xgbaRam;
 			cpu->memory.activeMask = GBA_SIZE_XGBA_RAM - 1;
 		} else {
-			cpu->memory.activeRegion = NULL;
-			cpu->memory.activeMask = 0;
+			goto invalidRegion;
 		}
 		break;
 	case GBA_REGION_EWRAM:
@@ -391,6 +396,7 @@ static void GBASetActiveRegion(struct ARMCore* cpu, uint32_t address) {
 		}
 	// Fall through
 	default:
+	invalidRegion:
 		cpu->memory.accessSource = mACCESS_UNKNOWN;
 		memory->activeRegion = -1;
 		cpu->memory.activeRegion = (uint32_t*) _deadbeef;

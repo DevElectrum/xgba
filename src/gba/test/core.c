@@ -823,6 +823,11 @@ M_TEST_DEFINE(r8Ram) {
 	assert_int_equal(GBALoad32(cpu, base + 0x104, NULL), 0);
 	mCoreConfigDeinit(&core->config);
 
+	// Invalid instruction fetch addresses must not wrap to the first RAM byte.
+	cpu->gprs[ARM_PC] = base + GBA_SIZE_XGBA_RAM;
+	ARMWritePC(cpu);
+	assert_true(cpu->memory.activeRegion != (uint32_t*) gba->memory.xgbaRam);
+
 	core->unloadROM(core);
 	assert_null(gba->memory.xgbaRam);
 	assert_int_equal(core->stateSize(core), sizeof(struct GBASerializedState));

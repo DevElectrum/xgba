@@ -175,6 +175,11 @@ void GBAUnloadROM(struct GBA* gba) {
 	gba->memory.xgbaRomOwned = false;
 	gba->memory.xgbaRomSize = 0;
 	if (gba->memory.xgbaRam) {
+		if (gba->cpu && gba->cpu->memory.activeRegion == (uint32_t*) gba->memory.xgbaRam) {
+			gba->cpu->memory.activeRegion = NULL;
+			gba->cpu->memory.activeMask = 0;
+			gba->memory.activeRegion = -1;
+		}
 		mappedMemoryFree(gba->memory.xgbaRam, GBA_SIZE_XGBA_RAM);
 		gba->memory.xgbaRam = NULL;
 	}
