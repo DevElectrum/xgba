@@ -1,0 +1,41 @@
+name: XGBA R8 4 MiB RAM CPU, state and E5/E6/E7 regressions
+on:
+  push:
+    branches:
+      - xgba/r8-4mib-ram
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-r8-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install emulator dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config libcmocka-dev zlib1g-dev libsdl2-dev
+      - name: Configure headless and core tests
+        run: |
+          cmake -S . -B build-r8 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DM_CORE_GBA=ON -DM_CORE_GB=OFF \
+            -DBUILD_QT=OFF -DBUILD_SDL=ON -DSDL_VERSION=2 \
+            -DBUILD_HEADLESS=ON -DBUILD_SUITE=ON \
+            -DENABLE_SCRIPTING=OFF -DUSE_FFMPEG=OFF \
+            -DUSE_EDITLINE=OFF -DUSE_DISCORD_RPC=OFF
+      - name: Build emulator and R8 test suite
+        run: cmake --build build-r8 --parallel 2
+      - name: Generate E7 and legacy ROM fixtures
+        run: |
+          python3 tools/xgba_generate_test_rom.py build-r8/xgba-integration.gba
+          python3 tools/xgba_generate_test_rom.py --legacy build-r8/legacy-integration.gba
+      - name: Run complete core and persistence regression suite
+        env:
+          XGBA_TEST_ROM: ${{ github.workspace }}/build-r8/xgba-integration.gba
+          XGBA_LEGACY_ROM: ${{ github.workspace }}/build-r8/legacy-integration.gba
+        run: ctest --test-dir build-r8 --output-on-failure
+      - name: No generated ROM or save published
+        if: always()
+        run: rm -f build-r8/*.gba
