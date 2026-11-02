@@ -11,6 +11,7 @@
 #include <mgba/internal/gba/io.h>
 #include <mgba/internal/gba/dma.h>
 #include <mgba/internal/gba/serialize.h>
+#include <mgba/core/rewind.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <mgba/internal/arm/isa-inlines.h>
@@ -802,6 +803,18 @@ M_TEST_DEFINE(r8Ram) {
 	assert_false(core->loadState(core, snapshot));
 	assert_int_equal(GBALoad8(cpu, last, NULL), 0x5A);
 	free(snapshot);
+
+	// The real rewind API uses named savestates and must carry all 4 MiB.
+	struct mCoreRewindContext rewind = {0};
+	mCoreRewindContextInit(&rewind, 3, false);
+	GBAStore8(cpu, last, 0x33, NULL);
+	mCoreRewindAppend(&rewind, core);
+	GBAStore8(cpu, last, 0x44, NULL);
+	mCoreRewindAppend(&rewind, core);
+	GBAStore8(cpu, last, 0x55, NULL);
+	assert_true(mCoreRewindRestore(&rewind, core, 1));
+	assert_int_equal(GBALoad8(cpu, last, NULL), 0x33);
+	mCoreRewindContextDeinit(&rewind);
 
 	// Reset clears volatile RAM, without touching E6 save-file architecture.
 	GBAStore32(cpu, base + 0x104, 0xDEC0DE42, NULL);
