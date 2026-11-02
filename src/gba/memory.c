@@ -520,7 +520,7 @@ uint32_t GBALoad32(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 	if (memory->xgbaRam && (uint32_t) (address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
 		uint32_t offset = (address - GBA_BASE_XGBA_RAM) & ~3U;
 		uint32_t result = 0;
-		LOAD_32(result, offset, memory->xgbaRam);
+		memcpy(&result, memory->xgbaRam + offset, sizeof(result));
 		if (cycleCounter) {
 			*cycleCounter += memory->waitstatesNonseq32[GBA_REGION_XGBA_RAM] + 2;
 		}
@@ -604,7 +604,7 @@ uint32_t GBALoad16(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 	if (memory->xgbaRam && (uint32_t) (address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
 		uint32_t offset = (address - GBA_BASE_XGBA_RAM) & ~1U;
 		uint32_t result = 0;
-		LOAD_16(result, offset, memory->xgbaRam);
+		memcpy(&result, memory->xgbaRam + offset, sizeof(uint16_t));
 		if (cycleCounter) {
 			*cycleCounter += memory->waitstatesNonseq16[GBA_REGION_XGBA_RAM] + 2;
 		}
