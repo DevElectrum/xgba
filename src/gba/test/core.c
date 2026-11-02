@@ -12,6 +12,7 @@
 #include <mgba/internal/gba/dma.h>
 #include <mgba/internal/gba/serialize.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <mgba/internal/arm/isa-inlines.h>
 #include <mgba-util/memory.h>
 #include <mgba-util/vfs.h>
@@ -717,7 +718,14 @@ M_TEST_DEFINE(r8Ram) {
 		GBAStore32(cpu, base + offset, (int32_t) (0xC7000000U ^ offset), NULL);
 	}
 	for (uint32_t offset = 0; offset < GBA_SIZE_XGBA_RAM; offset += 4) {
-		assert_int_equal(GBALoad32(cpu, base + offset, NULL), 0xC7000000U ^ offset);
+		uint32_t expected = 0xC7000000U ^ offset;
+		uint32_t actual = GBALoad32(cpu, base + offset, NULL);
+		if (actual != expected) {
+			uint32_t backing = 0;
+			memcpy(&backing, gba->memory.xgbaRam + offset, sizeof(backing));
+			fprintf(stderr, "R8_FULL_SWEEP offset=0x%08X bus=0x%08X backing=0x%08X expected=0x%08X\\n", offset, actual, backing, expected);
+		}
+		assert_int_equal(actual, expected);
 	}
 	GBAStore8(cpu, last, 0x5A, NULL);
 	GBAStore16(cpu, base + 0x12, 0xBEEF, NULL);
