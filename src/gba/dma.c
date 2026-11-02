@@ -65,7 +65,7 @@ uint32_t GBADMAWriteSAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMASAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA source address: 0x%08X", address);
 	}
-	if (dma == 3 && memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
+	if (memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
 		memory->dma[dma].source = address & ~1U;
 	} else if (dma > 0 && memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
 	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
@@ -81,7 +81,7 @@ uint32_t GBADMAWriteDAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMADAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA destination address: 0x%08X", address);
 	}
-	if (dma == 3 && memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
+	if (memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
 		memory->dma[dma].dest = address & ~1U;
 	} else {
 		memory->dma[dma].dest = address & DMA_DST_MASK[dma];
