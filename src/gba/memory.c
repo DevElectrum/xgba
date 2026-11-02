@@ -17,7 +17,6 @@
 #include <mgba-util/math.h>
 #include <mgba-util/memory.h>
 #include <mgba-util/vfs.h>
-#include <stdio.h>
 
 #define IDLE_LOOP_THRESHOLD 10000
 
@@ -518,16 +517,15 @@ uint32_t GBALoad32(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 	int wait = 0;
 	char* waitstatesRegion = memory->waitstatesNonseq32;
 
-	if (address == GBA_BASE_XGBA_RAM) fprintf(stderr, "R8_LOAD_ENTRY addr=%08X ram=%p base=%08X size=%08X delta=%08X\\n", address, (void*)memory->xgbaRam, GBA_BASE_XGBA_RAM, GBA_SIZE_XGBA_RAM, (uint32_t)(address-GBA_BASE_XGBA_RAM));
 	if (memory->xgbaRam && (uint32_t) (address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
 		uint32_t offset = (address - GBA_BASE_XGBA_RAM) & ~3U;
 		uint32_t result = 0;
 		memcpy(&result, memory->xgbaRam + offset, sizeof(result));
-		if (address == GBA_BASE_XGBA_RAM) fprintf(stderr, "R8_LOAD_RAM result=%08X offset=%08X\\n", result, offset);
 		if (cycleCounter) {
 			*cycleCounter += memory->waitstatesNonseq32[GBA_REGION_XGBA_RAM] + 2;
 		}
-		return ROR(result, (address & 3) << 3);
+		int rotate = (address & 3) << 3;
+		return ROR(result, rotate);
 	}
 
 	if (memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
@@ -611,7 +609,8 @@ uint32_t GBALoad16(struct ARMCore* cpu, uint32_t address, int* cycleCounter) {
 		if (cycleCounter) {
 			*cycleCounter += memory->waitstatesNonseq16[GBA_REGION_XGBA_RAM] + 2;
 		}
-		return ROR(result, (address & 1) << 3);
+		int rotate = (address & 1) << 3;
+		return ROR(result, rotate);
 	}
 
 	if (memory->xgbaRom && address >= GBA_BASE_XGBA_ROM

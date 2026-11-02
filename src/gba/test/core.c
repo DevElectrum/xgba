@@ -723,7 +723,7 @@ M_TEST_DEFINE(r8Ram) {
 		if (actual != expected) {
 			uint32_t backing = 0;
 			memcpy(&backing, gba->memory.xgbaRam + offset, sizeof(backing));
-			fprintf(stderr, "R8_FULL_SWEEP offset=0x%08X bus=0x%08X backing=0x%08X expected=0x%08X\\n", offset, actual, backing, expected);
+			fprintf(stderr, "R8_FULL_SWEEP offset=0x%08X bus=0x%08X backing=0x%08X expected=0x%08X\n", offset, actual, backing, expected);
 		}
 		assert_int_equal(actual, expected);
 	}
@@ -784,6 +784,10 @@ M_TEST_DEFINE(r8Ram) {
 	assert_int_equal(GBADMAWriteDAD(gba, 1, GBA_BASE_EWRAM + 0x200), GBA_BASE_EWRAM + 0x200);
 	GBADMAWriteCNT_HI(gba, 1, 0x8400);
 	assert_false(GBADMARegisterIsEnable(gba->memory.dma[1].reg));
+	assert_int_equal(GBADMAWriteSAD(gba, 3, base + GBA_SIZE_XGBA_RAM), base + GBA_SIZE_XGBA_RAM);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x200), GBA_BASE_EWRAM + 0x200);
+	GBADMAWriteCNT_HI(gba, 3, 0x8400);
+	assert_false(GBADMARegisterIsEnable(gba->memory.dma[3].reg));
 
 	// A complete savestate must preserve the last byte, not only native EWRAM.
 	const size_t stateSize = core->stateSize(core);

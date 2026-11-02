@@ -65,7 +65,7 @@ uint32_t GBADMAWriteSAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMASAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA source address: 0x%08X", address);
 	}
-	if (memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
+	if (memory->xgbaRam && (address >> BASE_OFFSET) == GBA_REGION_XGBA_RAM) {
 		memory->dma[dma].source = address & ~1U;
 	} else if (dma > 0 && memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
 	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
@@ -81,7 +81,7 @@ uint32_t GBADMAWriteDAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMADAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA destination address: 0x%08X", address);
 	}
-	if (memory->xgbaRam && (uint32_t)(address - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM) {
+	if (memory->xgbaRam && (address >> BASE_OFFSET) == GBA_REGION_XGBA_RAM) {
 		memory->dma[dma].dest = address & ~1U;
 	} else {
 		memory->dma[dma].dest = address & DMA_DST_MASK[dma];
@@ -113,12 +113,18 @@ uint16_t GBADMAWriteCNT_HI(struct GBA* gba, int dma, uint16_t control) {
 	} else {
 		control &= 0xFFE0;
 	}
-	// DMA0-2 cannot address the R8 extension. Reject rather than truncate.
-	if (dma < 3 && memory->xgbaRam
-	    && ((uint32_t)(currentDma->source - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM
-	        || (uint32_t)(currentDma->dest - GBA_BASE_XGBA_RAM) < GBA_SIZE_XGBA_RAM)) {
-		control &= ~0x8000;
-		mLOG(GBA_DMA, WARN, "R8 RAM requires DMA3");
+	// Do not reinterpret unsupported R8 addresses as ordinary hardware DMA.
+	// DMA3 is allowed only for strictly in-window sources and destinations.
+	if (memory->xgbaRam) {
+		bool sourceIsR8 = (currentDma->source >> BASE_OFFSET) == GBA_REGION_XGBA_RAM;
+		bool destIsR8 = (currentDma->dest >> BASE_OFFSET) == GBA_REGION_XGBA_RAM;
+		if ((sourceIsR8 || destIsR8)
+		    && (dma != 3
+		        || (sourceIsR8 && currentDma->source - GBA_BASE_XGBA_RAM >= GBA_SIZE_XGBA_RAM)
+		        || (destIsR8 && currentDma->dest - GBA_BASE_XGBA_RAM >= GBA_SIZE_XGBA_RAM))) {
+			control &= ~0x8000;
+			mLOG(GBA_DMA, WARN, "Rejected unsupported or out-of-range R8 DMA");
+		}
 	}
 	currentDma->reg = control;
 
