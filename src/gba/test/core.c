@@ -724,7 +724,7 @@ M_TEST_DEFINE(r8Ram) {
 	assert_int_equal(GBALoad8(cpu, last, NULL), 0x5A);
 	assert_int_equal(GBAView8(cpu, last), 0x5A);
 	assert_int_equal(GBAView16(cpu, base + 0x12), 0xBEEF);
-	assert_int_equal(GBALoad16(cpu, base + 0x12), 0xBEEF);
+	assert_int_equal(GBALoad16(cpu, base + 0x12, NULL), 0xBEEF);
 	GBAStore8(cpu, base + GBA_SIZE_XGBA_RAM, 0xEF, NULL);
 	assert_int_equal(GBALoad8(cpu, base, NULL), 0);
 	assert_int_equal(gba->memory.xgbaRam[0], 0);
@@ -780,16 +780,16 @@ M_TEST_DEFINE(r8Ram) {
 	// A complete savestate must preserve the last byte, not only native EWRAM.
 	const size_t stateSize = core->stateSize(core);
 	assert_int_equal(stateSize, sizeof(struct GBASerializedState) + 16 + GBA_SIZE_XGBA_RAM);
-	uint8_t* state = malloc(stateSize);
-	assert_non_null(state);
-	assert_true(core->saveState(core, state));
+	uint8_t* snapshot = malloc(stateSize);
+	assert_non_null(snapshot);
+	assert_true(core->saveState(core, snapshot));
 	GBAStore8(cpu, last, 0x7B, NULL);
-	assert_true(core->loadState(core, state));
+	assert_true(core->loadState(core, snapshot));
 	assert_int_equal(GBALoad8(cpu, last, NULL), 0x5A);
-	state[sizeof(struct GBASerializedState) + 16 + GBA_SIZE_XGBA_RAM - 1] ^= 1;
-	assert_false(core->loadState(core, state));
+	snapshot[sizeof(struct GBASerializedState) + 16 + GBA_SIZE_XGBA_RAM - 1] ^= 1;
+	assert_false(core->loadState(core, snapshot));
 	assert_int_equal(GBALoad8(cpu, last, NULL), 0x5A);
-	free(state);
+	free(snapshot);
 
 	// Reset clears volatile RAM, without touching E6 save-file architecture.
 	GBAStore32(cpu, base + 0x104, 0xDEC0DE42, NULL);
