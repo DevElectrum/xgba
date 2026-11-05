@@ -1,3 +1,11 @@
+# CURRENT OVERRIDE: XGBA R8 MERGED TO MASTER (2026-11-05)
+
+XGBA `master` now contains the E5/E6/E7 expansion and opt-in R8 4 MiB RAM through [PR #5](https://github.com/DevElectrum/xgba/pull/5), merge `6ccf999b698d1cd42e8659af9ebc2e4afb9dc970`. The [post-merge baseline CI #41977682790](https://github.com/DevElectrum/xgba/actions/runs/41977682790) passed. Companion Grand Anthology R8.4 was merged to its `main` through [PR #18](https://github.com/DevElectrum/grand-anthology/pull/18), merge `2cd6a86b06d8d8624d17c5675583f0d20631fa1e`; its C4 dual-UI graphical Save3/cold [#41975676730](https://github.com/DevElectrum/grand-anthology/actions/runs/41975676730) and C5 three-region travel, Save3/cold and recovery [#41975048607](https://github.com/DevElectrum/grand-anthology/actions/runs/41975048607) passed. **Older R8 not-merged/only-emulator-test statements below are archival.** This is source integration, not an Android or user-save migration certificate.
+
+Next requested work is **Sinnoh architecture planning in Grand Anthology**, not emulator implementation yet. Preserve 256 MiB ROM opt-in tag, 16 MiB persistent E6 journal, 4 MiB volatile R8 window, old-ROM compatibility, CPU/DMA/rewind semantics, and native Flash. No casual changes to `master` or repeated R8 gate suites. Keep Pokémon Mosaic and player saves entirely separate. Read [latest XGBA handoff](docs/NEXT_ASTRA_HANDOFF.md).
+
+---
+
 # Astra agent rules: XGBA emulator fork
 
 **Current R8 experimental checkpoint (Nov 2 UTC):** 4 MiB RAM source, DMA3, full-state/rewind and fail-closed bounds passed 16/16 CTest suites, CI https://github.com/DevElectrum/xgba/actions/runs/41439577345. Branch `xgba/r8-4mib-ram`, code `979c2470`. R8 is not yet Anthology gameplay accepted or merged. Keep accepted E7/rebrand, user saves, Mosaic and Anthology untouched until a separate explicitly guarded A2 integration. Read `docs/NEXT_ASTRA_HANDOFF.md` and `docs/XGBA_R8_RAM_PLAN.md` first.

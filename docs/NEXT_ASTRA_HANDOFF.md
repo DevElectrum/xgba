@@ -1,5 +1,17 @@
 # XGBA living handoff for future Astras
 
+## CURRENT: XGBA R8 + ANTHOLOGY R8.4 MERGED (2026-11-05)
+
+**Stable code pointers:** XGBA `master` [PR #5](https://github.com/DevElectrum/xgba/pull/5), merged as `6ccf999b698d1cd42e8659af9ebc2e4afb9dc970`; Grand Anthology `main` [PR #18](https://github.com/DevElectrum/grand-anthology/pull/18), merged as `2cd6a86b06d8d8624d17c5675583f0d20631fa1e`. Game docs-only handoff closeout subsequently advanced its `main` to `5efa0e1151bb55133450490fb5a359152a57145d`; the merge anchor above remains correct.
+
+**Accepted:** XGBA post-merge [baseline Actions #41977682790](https://github.com/DevElectrum/xgba/actions/runs/41977682790) PASS. Game [C4 Classic/SwSh actual GUI release+Save3+cold #41975676730](https://github.com/DevElectrum/grand-anthology/actions/runs/41975676730) and [C5 travel, per-region Save3/cold and torn-save recovery #41975048607](https://github.com/DevElectrum/grand-anthology/actions/runs/41975048607) PASS. Post-merge Grand Anthology [build #41978044317](https://github.com/DevElectrum/grand-anthology/actions/runs/41978044317) and [mGBA smoke #41978044195](https://github.com/DevElectrum/grand-anthology/actions/runs/41978044195) PASS. The 112-box/3,360-record PC persistence is **game-side A2 journal backed**, not part of XGBA RAM itself. Game uses an opt-in 256 MiB ROM, 16 MiB E6 save, R8 4 MiB volatile RAM at `0x20000000..0x203FFFFF`; other ROMs retain prior behavior. No claimed live Nyx/Android FPS measurement or migrated player saves.
+
+**Next:** User specifically requested handoff closeout then **Sinnoh design**, not Sinnoh coding. The emulator is a stable dependency unless a concrete new engine requirement appears. Design game-side ROM/map/story modules, region progression/warps and save flag namespace without breaking the A2 committed cohort, current three-region travel, vanilla native Flash or earlier E5-E7 support. Do not modify Mosaic, publish ROMs, or redo already-green R8.4 acceptance for its own sake. Historical experimental-only and not-merged claims below are archived, not present release blockers.
+
+---
+
+
+
 ## R8 4 MiB RAM experimental emulator source: CI GREEN (Nov 2, 2026 UTC)
 
 **Current active development branch:** `xgba/r8-4mib-ram` based on the FROZEN `xgba/e7-accepted-20261031` commit `9aa5e11e`. Latest validated code `979c2470aa7068ff7a7299718585267207d54195`. All 16 existing and new CTest suites passed in [R8 Actions run 41439577345](https://github.com/DevElectrum/xgba/actions/runs/41439577345). Previous green [41439384599](https://github.com/DevElectrum/xgba/actions/runs/41439384599) validates direct rewind. These are source/emulator-core gates, NOT an Anthology gameplay/release acceptance.

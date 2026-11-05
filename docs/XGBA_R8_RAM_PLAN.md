@@ -1,3 +1,5 @@
+> **2026-11-05 MERGE CLOSEOUT (supersedes experimental status below):** R8 4 MiB source is now on XGBA `master` through [PR #5](https://github.com/DevElectrum/xgba/pull/5) at `6ccf999b698d1cd42e8659af9ebc2e4afb9dc970`; [post-merge baseline CI #41977682790](https://github.com/DevElectrum/xgba/actions/runs/41977682790) passed. Companion Grand Anthology R8.4 merged in [PR #18](https://github.com/DevElectrum/grand-anthology/pull/18), C4 dual GUI Save3/cold [#41975676730](https://github.com/DevElectrum/grand-anthology/actions/runs/41975676730) PASS, C5 regional Save3/cold [#41975048607](https://github.com/DevElectrum/grand-anthology/actions/runs/41975048607) PASS. All no-merge/pending-integration text below refers to the earlier experiment. Next is Sinnoh **planning** in game repository, not emulator code. No user-save migration or measured host FPS has been claimed.
+
 # XGBA R8: isolated 4 MiB RAM capability (experimental)
 
 Branch: `xgba/r8-4mib-ram` from frozen E7 `9aa5e11e`. No production release and no changes to Anthology, Mosaic or player saves.
