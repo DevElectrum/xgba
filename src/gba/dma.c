@@ -65,7 +65,14 @@ uint32_t GBADMAWriteSAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMASAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA source address: 0x%08X", address);
 	}
-	memory->dma[dma].source = address & DMA_SRC_MASK[dma];
+	if (memory->xgbaRam && (address >> BASE_OFFSET) == GBA_REGION_XGBA_RAM) {
+		memory->dma[dma].source = address & ~1U;
+	} else if (dma > 0 && memory->xgbaRom && address >= GBA_BASE_XGBA_ROM
+	    && address < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM) {
+		memory->dma[dma].source = address & ~1U;
+	} else {
+		memory->dma[dma].source = address & DMA_SRC_MASK[dma];
+	}
 	return memory->dma[dma].source;
 }
 
@@ -74,7 +81,11 @@ uint32_t GBADMAWriteDAD(struct GBA* gba, int dma, uint32_t address) {
 	if (!_isValidDMADAD(dma, address)) {
 		mLOG(GBA_DMA, GAME_ERROR, "Invalid DMA destination address: 0x%08X", address);
 	}
-	memory->dma[dma].dest = address & DMA_DST_MASK[dma];
+	if (memory->xgbaRam && (address >> BASE_OFFSET) == GBA_REGION_XGBA_RAM) {
+		memory->dma[dma].dest = address & ~1U;
+	} else {
+		memory->dma[dma].dest = address & DMA_DST_MASK[dma];
+	}
 	return memory->dma[dma].dest;
 }
 
@@ -102,10 +113,25 @@ uint16_t GBADMAWriteCNT_HI(struct GBA* gba, int dma, uint16_t control) {
 	} else {
 		control &= 0xFFE0;
 	}
+	// Do not reinterpret unsupported R8 addresses as ordinary hardware DMA.
+	// DMA3 is allowed only for strictly in-window sources and destinations.
+	if (memory->xgbaRam) {
+		bool sourceIsR8 = (currentDma->source >> BASE_OFFSET) == GBA_REGION_XGBA_RAM;
+		bool destIsR8 = (currentDma->dest >> BASE_OFFSET) == GBA_REGION_XGBA_RAM;
+		if ((sourceIsR8 || destIsR8)
+		    && (dma != 3
+		        || (sourceIsR8 && currentDma->source - GBA_BASE_XGBA_RAM >= GBA_SIZE_XGBA_RAM)
+		        || (destIsR8 && currentDma->dest - GBA_BASE_XGBA_RAM >= GBA_SIZE_XGBA_RAM))) {
+			control &= ~0x8000;
+			mLOG(GBA_DMA, WARN, "Rejected unsupported or out-of-range R8 DMA");
+		}
+	}
 	currentDma->reg = control;
 
 	uint32_t width = 2 << GBADMARegisterGetWidth(currentDma->reg);
-	if (currentDma->source >= GBA_BASE_ROM0 && currentDma->source < GBA_BASE_SRAM) {
+	if ((currentDma->source >= GBA_BASE_ROM0 && currentDma->source < GBA_BASE_SRAM)
+	    || (memory->xgbaRom && currentDma->source >= GBA_BASE_XGBA_ROM
+	        && currentDma->source < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM)) {
 		currentDma->sourceOffset = width;
 	} else {
 		currentDma->sourceOffset = DMA_OFFSET[GBADMARegisterGetSrcControl(currentDma->reg)] * width;
@@ -319,7 +345,9 @@ void GBADMAService(struct GBA* gba, int number, struct GBADMA* info) {
 	info->nextDest += info->destOffset;
 	if (UNLIKELY(sourceRegion != info->nextSource >> BASE_OFFSET) || UNLIKELY(destRegion != info->nextDest >> BASE_OFFSET)) {
 		// Crossed region boundary
-		if (info->nextSource >= GBA_BASE_ROM0 && info->nextSource < GBA_BASE_SRAM) {
+		if ((info->nextSource >= GBA_BASE_ROM0 && info->nextSource < GBA_BASE_SRAM)
+		    || (memory->xgbaRom && info->nextSource >= GBA_BASE_XGBA_ROM
+		        && info->nextSource < GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM)) {
 			info->sourceOffset = width;
 		} else {
 			info->sourceOffset = DMA_OFFSET[GBADMARegisterGetSrcControl(info->reg)] * width;

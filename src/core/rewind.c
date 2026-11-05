@@ -159,7 +159,8 @@ bool mCoreRewindRestore(struct mCoreRewindContext* context, struct mCore* core, 
 		context->currentState = nextState;
 	}
 
-	mCoreLoadStateNamed(core, context->currentState, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
+	// An invalid or truncated R8 state must not be reported as a rewind success.
+	bool restored = mCoreLoadStateNamed(core, context->currentState, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
 
 
 #ifndef DISABLE_THREADING
@@ -167,7 +168,7 @@ bool mCoreRewindRestore(struct mCoreRewindContext* context, struct mCore* core, 
 		MutexUnlock(&context->mutex);
 	}
 #endif
-	return true;
+	return restored;
 }
 
 #ifndef DISABLE_THREADING

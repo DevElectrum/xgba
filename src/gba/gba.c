@@ -40,6 +40,9 @@ static const uint8_t GBA_ROM_MAGIC2[] = { 0x96 };
 
 static const size_t GBA_MB_MAGIC_OFFSET = 0xC0;
 
+static const size_t XGBA_ROM_MAGIC_OFFSET = 0xB5;
+static const uint8_t XGBA_ROM_MAGIC[] = { 'X', 'G', 'B', 'A', '2', '5', '6' };
+
 static void GBAInit(void* cpu, struct mCPUComponent* component);
 static void GBACP0Process(struct ARMCore* cpu, int crn, int crm, int crd, int opcode1, int opcode2);
 static int32_t GBACP14Read(struct ARMCore* cpu, int crn, int crm, int opcode1, int opcode2);
@@ -153,6 +156,13 @@ void GBAUnloadROM(struct GBA* gba) {
 
 	if (gba->romVf) {
 #ifndef FIXED_ROM_BUFFER
+		if (gba->memory.xgbaRom) {
+			if (gba->memory.xgbaRomOwned) {
+				mappedMemoryFree(gba->memory.xgbaRom, GBA_SIZE_XGBA_ROM);
+			} else {
+				gba->romVf->unmap(gba->romVf, gba->memory.xgbaRom, gba->memory.xgbaRomSize);
+			}
+		}
 		if (gba->isPristine && gba->memory.rom) {
 			gba->romVf->unmap(gba->romVf, gba->memory.rom, gba->pristineRomSize);
 		}
@@ -161,6 +171,18 @@ void GBAUnloadROM(struct GBA* gba) {
 		gba->romVf = NULL;
 	}
 	gba->memory.rom = NULL;
+	gba->memory.xgbaRom = NULL;
+	gba->memory.xgbaRomOwned = false;
+	gba->memory.xgbaRomSize = 0;
+	if (gba->memory.xgbaRam) {
+		if (gba->cpu && gba->cpu->memory.activeRegion == (uint32_t*) gba->memory.xgbaRam) {
+			gba->cpu->memory.activeRegion = NULL;
+			gba->cpu->memory.activeMask = 0;
+			gba->memory.activeRegion = -1;
+		}
+		mappedMemoryFree(gba->memory.xgbaRam, GBA_SIZE_XGBA_RAM);
+		gba->memory.xgbaRam = NULL;
+	}
 	gba->memory.romSize = 0;
 	gba->memory.romMask = 0;
 	gba->isPristine = false;
@@ -430,6 +452,47 @@ bool GBALoadROM(struct GBA* gba, struct VFile* vf) {
 	gba->romVf = vf;
 	gba->isPristine = true;
 	gba->pristineRomSize = vf->size(vf);
+	if (gba->pristineRomSize > GBA_SIZE_ROM0) {
+		uint8_t magic[sizeof(XGBA_ROM_MAGIC)];
+		bool xgbaTagged = vf->seek(vf, XGBA_ROM_MAGIC_OFFSET, SEEK_SET) >= 0
+			&& vf->read(vf, magic, sizeof(magic)) == sizeof(magic)
+			&& memcmp(magic, XGBA_ROM_MAGIC, sizeof(magic)) == 0;
+		if (xgbaTagged) {
+			if (gba->pristineRomSize > GBA_SIZE_XGBA_ROM) {
+				mLOG(GBA, WARN, "XGBA ROM exceeds 256 MiB");
+				gba->romVf = NULL;
+				gba->isPristine = false;
+				return false;
+			}
+#ifdef FIXED_ROM_BUFFER
+			mLOG(GBA, WARN, "XGBA extended ROM is unavailable with FIXED_ROM_BUFFER");
+			gba->romVf = NULL;
+			gba->isPristine = false;
+			return false;
+#else
+			if (gba->pristineRomSize < GBA_SIZE_XGBA_ROM) {
+				void* mapped = vf->map(vf, gba->pristineRomSize, MAP_READ);
+				if (mapped) {
+					gba->memory.xgbaRom = anonymousMemoryMap(GBA_SIZE_XGBA_ROM);
+					if (gba->memory.xgbaRom) {
+						memcpy(gba->memory.xgbaRom, mapped, gba->pristineRomSize);
+						gba->memory.xgbaRomOwned = true;
+					}
+					vf->unmap(vf, mapped, gba->pristineRomSize);
+				}
+			} else {
+				gba->memory.xgbaRom = vf->map(vf, gba->pristineRomSize, MAP_READ);
+			}
+			if (!gba->memory.xgbaRom) {
+				mLOG(GBA, WARN, "Couldn't map XGBA extended ROM");
+				gba->romVf = NULL;
+				gba->isPristine = false;
+				return false;
+			}
+			gba->memory.xgbaRomSize = gba->pristineRomSize;
+#endif
+		}
+	}
 	vf->seek(vf, 0, SEEK_SET);
 	if (gba->pristineRomSize > GBA_SIZE_ROM0) {
 		char ident;
@@ -466,13 +529,28 @@ bool GBALoadROM(struct GBA* gba, struct VFile* vf) {
 		gba->memory.romSize = gba->pristineRomSize;
 	}
 	if (!gba->memory.rom) {
+#ifndef FIXED_ROM_BUFFER
+		if (gba->memory.xgbaRom) {
+			if (gba->memory.xgbaRomOwned) {
+				mappedMemoryFree(gba->memory.xgbaRom, GBA_SIZE_XGBA_ROM);
+			} else {
+				vf->unmap(vf, gba->memory.xgbaRom, gba->memory.xgbaRomSize);
+			}
+			gba->memory.xgbaRom = NULL;
+			gba->memory.xgbaRomOwned = false;
+			gba->memory.xgbaRomSize = 0;
+		}
+#endif
 		gba->romVf = NULL;
+		gba->isPristine = false;
 		mLOG(GBA, WARN, "Couldn't map ROM");
 		return false;
 	}
 	gba->yankedRomSize = 0;
 	gba->memory.romMask = toPow2(gba->memory.romSize) - 1;
-	gba->romCrc32 = doCrc32(gba->memory.rom, gba->pristineRomSize);
+	gba->romCrc32 = gba->memory.xgbaRom
+		? doCrc32(gba->memory.xgbaRom, gba->memory.xgbaRomSize)
+		: doCrc32(gba->memory.rom, gba->pristineRomSize);
 	if (popcount32(gba->memory.romSize) != 1) {
 		// This ROM is either a bad dump or homebrew. Emulate flash cart behavior.
 #ifndef FIXED_ROM_BUFFER
@@ -489,7 +567,27 @@ bool GBALoadROM(struct GBA* gba, struct VFile* vf) {
 	}
 	GBAHardwareInit(&gba->memory.hw, &((uint16_t*) gba->memory.rom)[GPIO_REG_DATA >> 1]);
 	GBAUnlCartDetect(gba);
-	// TODO: error check
+	// R8 is a separate, explicit opt-in. The final 256 ROM bytes are reserved
+	// by the A1 packer; its last sixteen bytes remain the existing E7 probe.
+	if (gba->memory.xgbaRom && gba->memory.xgbaRomSize == GBA_SIZE_XGBA_ROM
+	    && ((const uint8_t*) gba->memory.rom)[0xBC] == 0xE6) {
+		const uint8_t* descriptor = gba->memory.xgbaRom + GBA_XGBA_RAM_DESCRIPTOR_OFFSET;
+		if (memcmp(descriptor, "XGBARAM8", 8) == 0) {
+			const uint8_t expected[8] = { 1, 0, 0, 0, 0, 0, 0x40, 0 };
+			if (memcmp(descriptor + 8, expected, sizeof(expected)) != 0) {
+				mLOG(GBA, WARN, "Unsupported XGBA RAM capability descriptor");
+				GBAUnloadROM(gba);
+				return false;
+			}
+			gba->memory.xgbaRam = anonymousMemoryMap(GBA_SIZE_XGBA_RAM);
+			if (!gba->memory.xgbaRam) {
+				mLOG(GBA, WARN, "XGBA R8 RAM allocation failed");
+				GBAUnloadROM(gba);
+				return false;
+			}
+			memset(gba->memory.xgbaRam, 0, GBA_SIZE_XGBA_RAM);
+		}
+	}
 	return true;
 }
 

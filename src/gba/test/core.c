@@ -7,6 +7,16 @@
 
 #include <mgba/core/core.h>
 #include <mgba/gba/core.h>
+#include <mgba/internal/gba/gba.h>
+#include <mgba/internal/gba/io.h>
+#include <mgba/internal/gba/dma.h>
+#include <mgba/internal/gba/serialize.h>
+#include <mgba/core/rewind.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <mgba/internal/arm/isa-inlines.h>
+#include <mgba-util/memory.h>
+#include <mgba-util/vfs.h>
 
 M_TEST_DEFINE(create) {
 	struct mCore* core = GBACoreCreate();
@@ -44,8 +54,808 @@ M_TEST_DEFINE(loadNullROM) {
 	core->deinit(core);
 }
 
+M_TEST_DEFINE(loadExtendedROM) {
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+
+	uint8_t* image = anonymousMemoryMap(GBA_SIZE_XGBA_ROM);
+	assert_non_null(image);
+	memcpy(&image[0xB5], "XGBA256", 7);
+	image[GBA_SIZE_ROM0 + 0x200] = 0x42;
+	image[GBA_SIZE_ROM0 + 0x200 + 1] = 0x34;
+	image[GBA_SIZE_ROM0 + 0x200 + 2] = 0x56;
+	image[GBA_SIZE_ROM0 + 0x200 + 3] = 0x78;
+	image[GBA_SIZE_ROM0 + 0x200 + 4] = 0x01;
+	image[GBA_SIZE_ROM0 + 0x200 + 5] = 0x02;
+	image[GBA_SIZE_ROM0 + 0x200 + 6] = 0x03;
+	image[GBA_SIZE_ROM0 + 0x200 + 7] = 0x04;
+	image[GBA_SIZE_XGBA_ROM / 2] = 0x78;
+	// E7: five real asset boundaries of the 256 MiB address space.
+	// These use the same base addresses as the E7 game's relocated worlds.
+	const uint32_t highAssets[] = {
+		0x04000000, 0x08000000, 0x0C000000, 0x0E000000, 0x0FF00000,
+	};
+	for (size_t i = 0; i < sizeof(highAssets) / sizeof(highAssets[0]); ++i) {
+		image[highAssets[i] + 0x100] = (uint8_t) (0xA0 + i);
+		image[highAssets[i] + 0x101] = (uint8_t) (0xB0 + i);
+		image[highAssets[i] + 0x102] = (uint8_t) (0xC0 + i);
+		image[highAssets[i] + 0x103] = (uint8_t) (0xD0 + i);
+	}
+	image[GBA_SIZE_XGBA_ROM - 4] = 0x10;
+	image[GBA_SIZE_XGBA_ROM - 3] = 0x20;
+	image[GBA_SIZE_XGBA_ROM - 2] = 0x30;
+	image[GBA_SIZE_XGBA_ROM - 1] = 0xA5;
+
+	const size_t armOffset = GBA_SIZE_ROM0 + 0x100;
+	const size_t thumbOffset = GBA_SIZE_XGBA_ROM - 0x100;
+	uint32_t armOp = 0xE3A0002A;
+	uint16_t thumbOp = 0x2135;
+	memcpy(&image[armOffset], &armOp, sizeof(armOp));
+	memcpy(&image[thumbOffset], &thumbOp, sizeof(thumbOp));
+	uint32_t crossBefore = 0xE3A07013;
+	uint32_t crossAfter = 0xE3A0801D;
+	memcpy(&image[GBA_SIZE_ROM0 - 4], &crossBefore, sizeof(crossBefore));
+	memcpy(&image[GBA_SIZE_ROM0], &crossAfter, sizeof(crossAfter));
+
+	struct VFile* vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
+	assert_non_null(vf);
+	assert_true(core->loadROM(core, vf));
+
+	struct GBA* gba = core->board;
+	assert_int_equal(gba->memory.romSize, GBA_SIZE_ROM0);
+	assert_int_equal(gba->memory.romMask, GBA_SIZE_ROM0 - 1);
+	assert_int_equal(gba->memory.xgbaRomSize, GBA_SIZE_XGBA_ROM);
+	assert_non_null(gba->memory.xgbaRom);
+	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_ROM0 + 0x200], 0x42);
+	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM / 2], 0x78);
+	assert_int_equal(gba->memory.xgbaRom[GBA_SIZE_XGBA_ROM - 1], 0xA5);
+
+	const struct mCoreMemoryBlock* blocks;
+	size_t blockCount = core->listMemoryBlocks(core, &blocks);
+	bool foundExtended = false;
+	for (size_t i = 0; i < blockCount; ++i) {
+		if (blocks[i].id == GBA_REGION_XGBA_ROM) {
+			assert_int_equal(blocks[i].start, GBA_BASE_XGBA_ROM);
+			assert_int_equal(blocks[i].end, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM);
+			assert_int_equal(blocks[i].size, GBA_SIZE_XGBA_ROM);
+			foundExtended = true;
+		}
+	}
+	assert_true(foundExtended);
+	size_t blockSize = 0;
+	assert_ptr_equal(core->getMemoryBlock(core, GBA_REGION_XGBA_ROM, &blockSize), gba->memory.xgbaRom);
+	assert_int_equal(blockSize, GBA_SIZE_XGBA_ROM);
+
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, NULL), 0x42);
+	assert_int_equal(GBAView8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200), 0x42);
+	assert_int_equal(GBAView16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200), 0x3442);
+	assert_int_equal(GBAView32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200), 0x78563442);
+	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, NULL), 0x3442);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, NULL), 0x78563442);
+	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200 + 1, NULL), 0x42000034);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200 + 1, NULL), 0x42785634);
+	uint32_t ldmEnd = GBALoadMultiple(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, 3, 0, NULL);
+	assert_int_equal(gba->cpu->gprs[0], 0x78563442);
+	assert_int_equal(gba->cpu->gprs[1], 0x04030201);
+	assert_int_equal(ldmEnd, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200 + 8);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM / 2, NULL), 0x78);
+	assert_int_equal(GBALoad16(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 2, NULL), 0xA530);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 4, NULL), 0xA5302010);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 1, NULL), 0xA5);
+	// E7: test the actual CPU read path, not direct memory[] access.
+	for (size_t i = 0; i < sizeof(highAssets) / sizeof(highAssets[0]); ++i) {
+		uint32_t address = GBA_BASE_XGBA_ROM + highAssets[i] + 0x100;
+		uint32_t expected = 0xD0C0B0A0 + (uint32_t) i * 0x01010101;
+		assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xA0 + i);
+		assert_int_equal(GBAView8(gba->cpu, address), 0xA0 + i);
+		assert_int_equal(GBALoad16(gba->cpu, address, NULL), (expected & 0xFFFF));
+		assert_int_equal(GBALoad32(gba->cpu, address, NULL), expected);
+		assert_int_equal(GBAView32(gba->cpu, address), expected);
+	}
+	assert_int_equal(GBAView8(gba->cpu, 0x1FFFFFFF), 0xA5);
+
+	struct ARMCore* cpu = gba->cpu;
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + armOffset;
+	ARMWritePC(cpu);
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
+	assert_int_equal(cpu->prefetch[0], armOp);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[0], 42);
+
+	_ARMSetMode(cpu, MODE_THUMB);
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + thumbOffset;
+	ThumbWritePC(cpu);
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
+	assert_int_equal(cpu->prefetch[0], thumbOp);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[1], 53);
+
+	_ARMSetMode(cpu, MODE_ARM);
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 - 4;
+	ARMWritePC(cpu);
+	assert_int_equal(cpu->prefetch[0], crossBefore);
+	assert_int_equal(cpu->prefetch[1], crossAfter);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[7], 19);
+	assert_int_equal(cpu->gprs[8], 29);
+
+	GBAAdjustWaitstates(gba, 0x001C);
+	int extendedCycles = 0;
+	int conventionalCycles = 0;
+	GBALoad32(cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200, &extendedCycles);
+	GBALoad32(cpu, GBA_BASE_ROM0 + 0x100, &conventionalCycles);
+	assert_int_equal(extendedCycles, conventionalCycles);
+	for (int region = GBA_REGION_XGBA_ROM; region < GBA_REGION_XGBA_ROM + 16; ++region) {
+		assert_int_equal(gba->memory.waitstatesSeq16[region], gba->memory.waitstatesSeq16[GBA_REGION_ROM0]);
+		assert_int_equal(gba->memory.waitstatesNonseq16[region], gba->memory.waitstatesNonseq16[GBA_REGION_ROM0]);
+		assert_int_equal(gba->memory.waitstatesSeq32[region], gba->memory.waitstatesSeq32[GBA_REGION_ROM0]);
+		assert_int_equal(gba->memory.waitstatesNonseq32[region], gba->memory.waitstatesNonseq32[GBA_REGION_ROM0]);
+	}
+
+	const uint32_t dmaSource = GBA_BASE_XGBA_ROM + GBA_SIZE_ROM0 + 0x200;
+	assert_int_equal(GBADMAWriteSAD(gba, 3, dmaSource), dmaSource);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x100), GBA_BASE_EWRAM + 0x100);
+	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
+	GBADMAWriteCNT_HI(gba, 3, 0x8400);
+	for (int i = 0; i < 4; ++i) {
+		mTimingTick(&gba->timing, 200);
+	}
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0x78563442);
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x104, NULL), 0x04030201);
+
+	assert_int_equal(GBADMAWriteSAD(gba, 3, dmaSource), dmaSource);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x110), GBA_BASE_EWRAM + 0x110);
+	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
+	GBADMAWriteCNT_HI(gba, 3, 0x8000);
+	for (int i = 0; i < 4; ++i) {
+		mTimingTick(&gba->timing, 200);
+	}
+	assert_int_equal(GBALoad16(cpu, GBA_BASE_EWRAM + 0x110, NULL), 0x3442);
+	assert_int_equal(GBALoad16(cpu, GBA_BASE_EWRAM + 0x112, NULL), 0x7856);
+
+	for (int channel = 1; channel <= 2; ++channel) {
+		uint32_t destination = GBA_BASE_EWRAM + 0x180 + channel * 0x10;
+		assert_int_equal(GBADMAWriteSAD(gba, channel, dmaSource), dmaSource);
+		assert_int_equal(GBADMAWriteDAD(gba, channel, destination), destination);
+		int countRegister = channel == 1 ? GBA_REG(DMA1CNT_LO) : GBA_REG(DMA2CNT_LO);
+		gba->memory.io[countRegister] = 2;
+		GBADMAWriteCNT_HI(gba, channel, 0x8400);
+		for (int i = 0; i < 4; ++i) {
+			mTimingTick(&gba->timing, 200);
+		}
+		assert_int_equal(GBALoad32(cpu, destination, NULL), 0x78563442);
+		assert_int_equal(GBALoad32(cpu, destination + 4, NULL), 0x04030201);
+	}
+
+	core->unloadROM(core);
+	assert_null(gba->memory.rom);
+	assert_null(gba->memory.xgbaRom);
+	assert_int_equal(gba->memory.xgbaRomSize, 0);
+	blockCount = core->listMemoryBlocks(core, &blocks);
+	for (size_t i = 0; i < blockCount; ++i) {
+		assert_true(blocks[i].id != GBA_REGION_XGBA_ROM);
+	}
+	core->deinit(core);
+	mappedMemoryFree(image, GBA_SIZE_XGBA_ROM);
+}
+
+#ifndef _WIN32
+M_TEST_DEFINE(loadExtendedFileROM) {
+	char path[] = "/tmp/xgba-rom-XXXXXX";
+	int fd = mkstemp(path);
+	assert_true(fd >= 0);
+	assert_int_equal(ftruncate(fd, GBA_SIZE_XGBA_ROM), 0);
+	assert_int_equal(lseek(fd, 0xB5, SEEK_SET), 0xB5);
+	assert_int_equal(write(fd, "XGBA256", 7), 7);
+	assert_int_equal(lseek(fd, GBA_SIZE_XGBA_ROM - 4, SEEK_SET), GBA_SIZE_XGBA_ROM - 4);
+	uint8_t lastWord[4] = { 0x78, 0x56, 0x34, 0x12 };
+	assert_int_equal(write(fd, lastWord, sizeof(lastWord)), sizeof(lastWord));
+	assert_int_equal(close(fd), 0);
+
+	struct VFile* vf = VFileOpen(path, O_RDONLY);
+	assert_non_null(vf);
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	assert_true(core->loadROM(core, vf));
+	struct GBA* gba = core->board;
+	assert_int_equal(gba->memory.xgbaRomSize, GBA_SIZE_XGBA_ROM);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 4, NULL), 0x12345678);
+
+	core->unloadROM(core);
+	core->deinit(core);
+	assert_int_equal(remove(path), 0);
+}
+#define XGBA_FILE_TEST cmocka_unit_test(loadExtendedFileROM),
+#else
+#define XGBA_FILE_TEST
+#endif
+
+M_TEST_DEFINE(partialExtendedROM) {
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	const size_t size = GBA_SIZE_ROM0 * 2;
+	uint8_t* image = anonymousMemoryMap(size);
+	assert_non_null(image);
+	memcpy(&image[0xB5], "XGBA256", 7);
+	image[size - 4] = 0x11;
+	image[size - 3] = 0x22;
+	image[size - 2] = 0x33;
+	image[size - 1] = 0x44;
+	uint32_t armOp = 0xE3A0502B;
+	uint16_t thumbOp = 0x265A;
+	memcpy(&image[size - 0x100], &armOp, sizeof(armOp));
+	memcpy(&image[size - 0x80], &thumbOp, sizeof(thumbOp));
+
+	struct VFile* vf = VFileFromConstMemory(image, size);
+	assert_non_null(vf);
+	assert_true(core->loadROM(core, vf));
+	struct GBA* gba = core->board;
+	assert_int_equal(gba->memory.xgbaRomSize, size);
+	assert_int_equal(GBALoad32(gba->cpu, GBA_BASE_XGBA_ROM + size - 4, NULL), 0x44332211);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_XGBA_ROM + 0xB5, NULL), 'X');
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_ROM0 + 0xB5, NULL), 'X');
+	assert_true(gba->memory.xgbaRomOwned);
+	assert_int_equal(GBAView32(gba->cpu, GBA_BASE_XGBA_ROM + size - 4), 0x44332211);
+	struct ARMCore* cpu = gba->cpu;
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + size - 0x100;
+	ARMWritePC(cpu);
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
+	assert_int_equal(cpu->prefetch[0], armOp);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[5], 43);
+	_ARMSetMode(cpu, MODE_THUMB);
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + size - 0x80;
+	ThumbWritePC(cpu);
+	assert_int_equal(cpu->prefetch[0], thumbOp);
+	void* savedState = calloc(1, core->stateSize(core));
+	assert_non_null(savedState);
+	assert_true(core->saveState(core, savedState));
+	cpu->gprs[6] = 0xDEAD;
+	assert_true(core->loadState(core, savedState));
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[6], 90);
+	free(savedState);
+
+	GBALoad32(cpu, GBA_BASE_XGBA_ROM + size, NULL);
+	GBALoad16(cpu, GBA_BASE_XGBA_ROM + size, NULL);
+	GBALoad8(cpu, GBA_BASE_XGBA_ROM + size, NULL);
+	gba->hardCrash = false;
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + size + 0x100;
+	ThumbWritePC(cpu);
+	assert_int_equal(gba->memory.activeRegion, -1);
+
+	core->unloadROM(core);
+	core->deinit(core);
+	mappedMemoryFree(image, size);
+}
+
+M_TEST_DEFINE(unmarkedOversizedROM) {
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+
+	const size_t size = GBA_SIZE_ROM0 * 2;
+	uint8_t* image = anonymousMemoryMap(size);
+	assert_non_null(image);
+	struct VFile* vf = VFileFromConstMemory(image, size);
+	assert_non_null(vf);
+	assert_true(core->loadROM(core, vf));
+
+	struct GBA* gba = core->board;
+	assert_int_equal(gba->memory.romSize, GBA_SIZE_ROM0);
+	assert_null(gba->memory.xgbaRom);
+	assert_int_equal(gba->memory.xgbaRomSize, 0);
+
+	core->unloadROM(core);
+	core->deinit(core);
+	mappedMemoryFree(image, size);
+}
+
+M_TEST_DEFINE(rejectExtendedROMOverLimit) {
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+
+	const size_t size = (size_t) GBA_SIZE_XGBA_ROM + 1;
+	uint8_t* image = anonymousMemoryMap(size);
+	assert_non_null(image);
+	memcpy(&image[0xB5], "XGBA256", 7);
+	struct VFile* vf = VFileFromConstMemory(image, size);
+	assert_non_null(vf);
+	assert_false(core->loadROM(core, vf));
+	vf->close(vf);
+
+	struct GBA* gba = core->board;
+	assert_null(gba->memory.rom);
+	assert_null(gba->memory.xgbaRom);
+	assert_int_equal(gba->memory.xgbaRomSize, 0);
+
+	core->deinit(core);
+	mappedMemoryFree(image, size);
+}
+
+M_TEST_DEFINE(generatedExtendedProgram) {
+	const char* path = getenv("XGBA_TEST_ROM");
+	if (!path) {
+		return;
+	}
+	struct VFile* vf = VFileOpen(path, O_RDONLY);
+	assert_non_null(vf);
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	assert_true(core->loadROM(core, vf));
+
+	struct GBA* gba = core->board;
+	struct ARMCore* cpu = gba->cpu;
+	assert_int_equal(gba->memory.xgbaRomSize, GBA_SIZE_XGBA_ROM);
+	cpu->gprs[ARM_PC] = GBA_BASE_ROM0;
+	ARMWritePC(cpu);
+	cpu->nextEvent = INT_MAX;
+	for (int i = 0; i < 6; ++i) {
+		ARMRun(cpu);
+	}
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0xC0FFEE42);
+
+	cpu->gprs[ARM_PC] = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM - 0xF0;
+	ARMWritePC(cpu);
+	assert_int_equal(cpu->prefetch[0], 0xE3A0307B);
+	void* savedState = calloc(1, core->stateSize(core));
+	assert_non_null(savedState);
+	assert_true(core->saveState(core, savedState));
+
+	cpu->gprs[3] = 0xBAD;
+	cpu->gprs[ARM_PC] = GBA_BASE_ROM0;
+	memset((uint8_t*) gba->memory.wram + 0x100, 0, 4);
+	assert_true(core->loadState(core, savedState));
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRom);
+	assert_int_equal(cpu->prefetch[0], 0xE3A0307B);
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0xC0FFEE42);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[3], 123);
+	free(savedState);
+
+	cpu->gprs[ARM_PC] = GBA_BASE_ROM0 + 0x140;
+	ARMWritePC(cpu);
+	cpu->nextEvent = INT_MAX;
+	for (int i = 0; i < 130; ++i) {
+		ARMRun(cpu);
+	}
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x104, NULL), 0x6CCF7CBE);
+
+	core->unloadROM(core);
+	core->deinit(core);
+}
+
+M_TEST_DEFINE(generatedLegacyProgram) {
+	const char* path = getenv("XGBA_LEGACY_ROM");
+	if (!path) {
+		return;
+	}
+	struct VFile* vf = VFileOpen(path, O_RDONLY);
+	assert_non_null(vf);
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	assert_true(core->loadROM(core, vf));
+
+	struct GBA* gba = core->board;
+	struct ARMCore* cpu = gba->cpu;
+	assert_null(gba->memory.xgbaRom);
+	assert_int_equal(gba->memory.romSize, 16 * 1024 * 1024);
+	cpu->gprs[ARM_PC] = GBA_BASE_ROM0;
+	ARMWritePC(cpu);
+	cpu->nextEvent = INT_MAX;
+	for (int i = 0; i < 6; ++i) {
+		ARMRun(cpu);
+	}
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x100, NULL), 0xC0FFEE42);
+	core->unloadROM(core);
+	core->deinit(core);
+}
+
+
+#ifndef _WIN32
+M_TEST_DEFINE(e5SavedataPersistent) {
+	const uint8_t header[24] = {
+		'X', 'G', 'B', 'A', 'E', '5', 'S', 0,
+		1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 16, 0,
+		0xFE, 0xB1, 0x7D, 0x49
+	};
+	char path[] = "/tmp/xgba-e5-save-XXXXXX";
+	int fd = mkstemp(path);
+	assert_true(fd >= 0);
+	uint8_t blank[4096];
+	memset(blank, 0xFF, sizeof(blank));
+	for (size_t i = 0; i < GBA_SIZE_XGBA_E5_SAVE / sizeof(blank); ++i) {
+		assert_int_equal(write(fd, blank, sizeof(blank)), sizeof(blank));
+	}
+	assert_int_equal(lseek(fd, GBA_SIZE_FLASH1M, SEEK_SET), GBA_SIZE_FLASH1M);
+	assert_int_equal(write(fd, header, sizeof(header)), sizeof(header));
+	assert_int_equal(lseek(fd, GBA_SIZE_XGBA_E5_SAVE - 0x1000, SEEK_SET),
+	                 GBA_SIZE_XGBA_E5_SAVE - 0x1000);
+	assert_int_equal(write(fd, header, sizeof(header)), sizeof(header));
+	assert_int_equal(close(fd), 0);
+
+	uint8_t* rom = anonymousMemoryMap(GBA_SIZE_ROM0 * 2);
+	assert_non_null(rom);
+	memset(rom, 0, GBA_SIZE_ROM0 * 2);
+	memcpy(&rom[0xB5], "XGBA256", 7);
+	rom[0xBC] = 0xE5;
+
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	struct VFile* vf = VFileFromConstMemory(rom, GBA_SIZE_ROM0 * 2);
+	assert_non_null(vf);
+	assert_true(core->loadROM(core, vf));
+	vf = VFileOpen(path, O_RDWR);
+	assert_non_null(vf);
+	assert_true(core->loadSave(core, vf));
+	struct GBA* gba = core->board;
+	const uint32_t address = GBA_BASE_SRAM_MIRROR + 0x1234;
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_SRAM_MIRROR, NULL), 'X');
+	assert_true(gba->memory.savedata.xgbaE5);
+	assert_int_equal(GBASavedataSize(&gba->memory.savedata), GBA_SIZE_XGBA_E5_SAVE);
+	GBAStore8(gba->cpu, address, 0xA5, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xA5);
+	assert_true(gba->memory.savedata.dirty != 0);
+	GBAStore8(gba->cpu, GBA_BASE_SRAM_MIRROR + GBA_SIZE_XGBA_E5_EXTENSION, 0x42, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_SRAM_MIRROR + GBA_SIZE_XGBA_E5_EXTENSION, NULL), 0xFF);
+
+	core->unloadROM(core);
+	core->deinit(core);
+	fd = open(path, O_RDONLY);
+	assert_true(fd >= 0);
+	uint8_t value = 0;
+	assert_int_equal(lseek(fd, GBA_SIZE_FLASH1M + 0x1234, SEEK_SET), GBA_SIZE_FLASH1M + 0x1234);
+	assert_int_equal(read(fd, &value, 1), 1);
+	assert_int_equal(value, 0xA5);
+	assert_int_equal(close(fd), 0);
+
+	// The duplicate superblock keeps E5 usable after losing the primary.
+	fd = open(path, O_RDWR);
+	assert_true(fd >= 0);
+	assert_int_equal(lseek(fd, GBA_SIZE_FLASH1M, SEEK_SET), GBA_SIZE_FLASH1M);
+	assert_int_equal(write(fd, "!", 1), 1);
+	assert_int_equal(close(fd), 0);
+	core = GBACoreCreate();
+	assert_true(core->init(core));
+	vf = VFileFromConstMemory(rom, GBA_SIZE_ROM0 * 2);
+	assert_true(core->loadROM(core, vf));
+	vf = VFileOpen(path, O_RDWR);
+	assert_true(core->loadSave(core, vf));
+	gba = core->board;
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xA5);
+	assert_true(gba->memory.savedata.xgbaE5);
+	core->unloadROM(core);
+	core->deinit(core);
+
+	// With both superblocks invalid, the extended mapping must stay disabled.
+	fd = open(path, O_RDWR);
+	assert_true(fd >= 0);
+	assert_int_equal(lseek(fd, GBA_SIZE_XGBA_E5_SAVE - 0x1000, SEEK_SET),
+	                 GBA_SIZE_XGBA_E5_SAVE - 0x1000);
+	assert_int_equal(write(fd, "!", 1), 1);
+	assert_int_equal(close(fd), 0);
+	core = GBACoreCreate();
+	assert_true(core->init(core));
+	vf = VFileFromConstMemory(rom, GBA_SIZE_ROM0 * 2);
+	assert_true(core->loadROM(core, vf));
+	vf = VFileOpen(path, O_RDWR);
+	assert_true(core->loadSave(core, vf));
+	gba = core->board;
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xFF);
+	assert_false(gba->memory.savedata.xgbaE5);
+	GBAStore8(gba->cpu, address, 0x11, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xFF);
+	core->unloadROM(core);
+	core->deinit(core);
+	mappedMemoryFree(rom, GBA_SIZE_ROM0 * 2);
+	assert_int_equal(remove(path), 0);
+}
+M_TEST_DEFINE(e6SavedataPersistent) {
+	const uint8_t header[24] = {
+		'X', 'G', 'B', 'A', 'E', '6', 'S', 0,
+		2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1,
+		0xB0, 0x2B, 0x5B, 0x12
+	};
+	char path[] = "/tmp/xgba-e6-save-XXXXXX";
+	int fd = mkstemp(path);
+	assert_true(fd >= 0);
+	uint8_t blank[4096];
+	memset(blank, 0xFF, sizeof(blank));
+	for (size_t i = 0; i < GBA_SIZE_XGBA_E6_SAVE / sizeof(blank); ++i) {
+		assert_int_equal(write(fd, blank, sizeof(blank)), sizeof(blank));
+	}
+	assert_int_equal(lseek(fd, GBA_SIZE_FLASH1M, SEEK_SET), GBA_SIZE_FLASH1M);
+	assert_int_equal(write(fd, header, sizeof(header)), sizeof(header));
+	assert_int_equal(lseek(fd, GBA_SIZE_XGBA_E6_SAVE - 0x1000, SEEK_SET),
+	                 GBA_SIZE_XGBA_E6_SAVE - 0x1000);
+	assert_int_equal(write(fd, header, sizeof(header)), sizeof(header));
+	assert_int_equal(close(fd), 0);
+
+	uint8_t* rom = anonymousMemoryMap(GBA_SIZE_ROM0 * 2);
+	assert_non_null(rom);
+	memset(rom, 0, GBA_SIZE_ROM0 * 2);
+	memcpy(&rom[0xB5], "XGBA256", 7);
+	rom[0xBC] = 0xE6;
+
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	struct VFile* vf = VFileFromConstMemory(rom, GBA_SIZE_ROM0 * 2);
+	assert_non_null(vf);
+	assert_true(core->loadROM(core, vf));
+	vf = VFileOpen(path, O_RDWR);
+	assert_non_null(vf);
+	assert_true(core->loadSave(core, vf));
+	struct GBA* gba = core->board;
+	const uint32_t address = GBA_BASE_SRAM_MIRROR + 0x1234;
+	const uint32_t highAddress = GBA_BASE_SRAM_MIRROR + 0xC00000;
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_SRAM_MIRROR, NULL), 'X');
+	assert_true(gba->memory.savedata.xgbaE6);
+	assert_int_equal(GBASavedataSize(&gba->memory.savedata), GBA_SIZE_XGBA_E6_SAVE);
+	GBAStore8(gba->cpu, highAddress, 0x71, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, highAddress, NULL), 0x71);
+	GBAStore8(gba->cpu, address, 0xA5, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xA5);
+	assert_true(gba->memory.savedata.dirty != 0);
+	GBAStore8(gba->cpu, GBA_BASE_SRAM_MIRROR + GBA_SIZE_XGBA_E6_EXTENSION, 0x42, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, GBA_BASE_SRAM_MIRROR + GBA_SIZE_XGBA_E6_EXTENSION, NULL), 0xFF);
+
+	core->unloadROM(core);
+	core->deinit(core);
+	fd = open(path, O_RDONLY);
+	assert_true(fd >= 0);
+	uint8_t value = 0;
+	assert_int_equal(lseek(fd, GBA_SIZE_FLASH1M + 0x1234, SEEK_SET), GBA_SIZE_FLASH1M + 0x1234);
+	assert_int_equal(read(fd, &value, 1), 1);
+	assert_int_equal(value, 0xA5);
+	assert_int_equal(close(fd), 0);
+
+	// The duplicate superblock keeps E6 usable after losing the primary.
+	fd = open(path, O_RDWR);
+	assert_true(fd >= 0);
+	assert_int_equal(lseek(fd, GBA_SIZE_FLASH1M, SEEK_SET), GBA_SIZE_FLASH1M);
+	assert_int_equal(write(fd, "!", 1), 1);
+	assert_int_equal(close(fd), 0);
+	core = GBACoreCreate();
+	assert_true(core->init(core));
+	vf = VFileFromConstMemory(rom, GBA_SIZE_ROM0 * 2);
+	assert_true(core->loadROM(core, vf));
+	vf = VFileOpen(path, O_RDWR);
+	assert_true(core->loadSave(core, vf));
+	gba = core->board;
+	assert_int_equal(GBALoad8(gba->cpu, highAddress, NULL), 0x71);
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xA5);
+	assert_true(gba->memory.savedata.xgbaE6);
+	core->unloadROM(core);
+	core->deinit(core);
+
+	// With both superblocks invalid, the extended mapping must stay disabled.
+	fd = open(path, O_RDWR);
+	assert_true(fd >= 0);
+	assert_int_equal(lseek(fd, GBA_SIZE_XGBA_E6_SAVE - 0x1000, SEEK_SET),
+	                 GBA_SIZE_XGBA_E6_SAVE - 0x1000);
+	assert_int_equal(write(fd, "!", 1), 1);
+	assert_int_equal(close(fd), 0);
+	core = GBACoreCreate();
+	assert_true(core->init(core));
+	vf = VFileFromConstMemory(rom, GBA_SIZE_ROM0 * 2);
+	assert_true(core->loadROM(core, vf));
+	vf = VFileOpen(path, O_RDWR);
+	assert_true(core->loadSave(core, vf));
+	gba = core->board;
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xFF);
+	assert_false(gba->memory.savedata.xgbaE6);
+	GBAStore8(gba->cpu, address, 0x11, NULL);
+	assert_int_equal(GBALoad8(gba->cpu, address, NULL), 0xFF);
+	core->unloadROM(core);
+	core->deinit(core);
+	mappedMemoryFree(rom, GBA_SIZE_ROM0 * 2);
+	assert_int_equal(remove(path), 0);
+}
+#define XGBA_E6_SAVE_TEST cmocka_unit_test(e6SavedataPersistent),
+#define XGBA_E5_SAVE_TEST cmocka_unit_test(e5SavedataPersistent),
+#else
+#define XGBA_E5_SAVE_TEST
+#define XGBA_E6_SAVE_TEST
+#endif
+
+
+M_TEST_DEFINE(r8Ram) {
+	// A full 256 MiB E6 ROM is required; the descriptor is in its final page.
+	uint8_t* image = anonymousMemoryMap(GBA_SIZE_XGBA_ROM);
+	assert_non_null(image);
+	memset(image, 0, GBA_SIZE_XGBA_ROM);
+	memcpy(image + 0xB5, "XGBA256", 7);
+	image[0xBC] = 0xE6;
+	const size_t descriptor = GBA_XGBA_RAM_DESCRIPTOR_OFFSET;
+	memcpy(image + descriptor, "XGBARAM8", 8);
+	image[descriptor + 8] = 1;
+	image[descriptor + 14] = 0x40;
+
+	struct mCore* core = GBACoreCreate();
+	assert_non_null(core);
+	assert_true(core->init(core));
+	struct VFile* vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
+	assert_non_null(vf);
+	assert_true(core->loadROM(core, vf));
+	struct GBA* gba = core->board;
+	struct ARMCore* cpu = gba->cpu;
+	assert_non_null(gba->memory.xgbaRam);
+	const uint32_t base = GBA_BASE_XGBA_RAM;
+	const uint32_t last = base + GBA_SIZE_XGBA_RAM - 1;
+	const struct mCoreMemoryBlock* blocks;
+	size_t blockCount = core->listMemoryBlocks(core, &blocks);
+	bool found = false;
+	for (size_t i = 0; i < blockCount; ++i) {
+		if (blocks[i].id == GBA_REGION_XGBA_RAM) {
+			assert_int_equal(blocks[i].start, base);
+			assert_int_equal(blocks[i].end, last + 1);
+			assert_int_equal(blocks[i].size, GBA_SIZE_XGBA_RAM);
+			found = true;
+		}
+	}
+	assert_true(found);
+	size_t blockSize = 0;
+	assert_ptr_equal(core->getMemoryBlock(core, GBA_REGION_XGBA_RAM, &blockSize), gba->memory.xgbaRam);
+	assert_int_equal(blockSize, GBA_SIZE_XGBA_RAM);
+
+	// Exercise every 32-bit word and the first/last bytes via the CPU bus.
+	for (uint32_t offset = 0; offset < GBA_SIZE_XGBA_RAM; offset += 4) {
+		GBAStore32(cpu, base + offset, (int32_t) (0xC7000000U ^ offset), NULL);
+	}
+	for (uint32_t offset = 0; offset < GBA_SIZE_XGBA_RAM; offset += 4) {
+		uint32_t expected = 0xC7000000U ^ offset;
+		uint32_t actual = GBALoad32(cpu, base + offset, NULL);
+		if (actual != expected) {
+			uint32_t backing = 0;
+			memcpy(&backing, gba->memory.xgbaRam + offset, sizeof(backing));
+			fprintf(stderr, "R8_FULL_SWEEP offset=0x%08X bus=0x%08X backing=0x%08X expected=0x%08X\n", offset, actual, backing, expected);
+		}
+		assert_int_equal(actual, expected);
+	}
+	GBAStore8(cpu, last, 0x5A, NULL);
+	GBAStore16(cpu, base + 0x12, 0xBEEF, NULL);
+	assert_int_equal(GBALoad8(cpu, last, NULL), 0x5A);
+	assert_int_equal(GBAView8(cpu, last), 0x5A);
+	assert_int_equal(GBAView16(cpu, base + 0x12), 0xBEEF);
+	assert_int_equal(GBALoad16(cpu, base + 0x12, NULL), 0xBEEF);
+	GBAStore8(cpu, base + GBA_SIZE_XGBA_RAM, 0xEF, NULL);
+	assert_int_equal(GBALoad8(cpu, base, NULL), 0);
+	assert_int_equal(gba->memory.xgbaRam[0], 0);
+	GBAStore32(cpu, 0x1FFFFFFC, 0xDEADBEEF, NULL);
+	assert_int_equal(GBAView8(cpu, 0x1FFFFFFF), 0);
+
+	cpu->gprs[0] = 0x11223344;
+	cpu->gprs[1] = 0x55667788;
+	assert_int_equal(GBAStoreMultiple(cpu, base + 0x200, 3, 0, NULL), base + 0x208);
+	assert_int_equal(GBAView32(cpu, base + 0x200), 0x11223344);
+	assert_int_equal(GBALoadMultiple(cpu, base + 0x200, 3, 0, NULL), base + 0x208);
+	assert_int_equal(cpu->gprs[1], 0x55667788);
+
+	// ARM and Thumb instruction fetch from the new RAM window.
+	GBAStore32(cpu, base + 0x300, 0xE3A0402A, NULL);
+	GBAStore16(cpu, base + 0x400, 0x2535, NULL);
+	cpu->gprs[ARM_PC] = base + 0x300;
+	ARMWritePC(cpu);
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRam);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[4], 42);
+	_ARMSetMode(cpu, MODE_THUMB);
+	cpu->gprs[ARM_PC] = base + 0x400;
+	ThumbWritePC(cpu);
+	assert_ptr_equal(cpu->memory.activeRegion, gba->memory.xgbaRam);
+	cpu->nextEvent = INT_MAX;
+	ARMRun(cpu);
+	assert_int_equal(cpu->gprs[5], 53);
+	_ARMSetMode(cpu, MODE_ARM);
+
+	// DMA3 must preserve region 0x20 instead of using the native 28-bit masks.
+	GBAStore32(cpu, base + 0x500, 0xAABBCCDD, NULL);
+	GBAStore32(cpu, base + 0x504, 0x10203040, NULL);
+	assert_int_equal(GBADMAWriteSAD(gba, 3, base + 0x500), base + 0x500);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x180), GBA_BASE_EWRAM + 0x180);
+	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
+	GBADMAWriteCNT_HI(gba, 3, 0x8400);
+	for (int i = 0; i < 4; ++i) mTimingTick(&gba->timing, 200);
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x180, NULL), 0xAABBCCDD);
+	assert_int_equal(GBALoad32(cpu, GBA_BASE_EWRAM + 0x184, NULL), 0x10203040);
+	assert_int_equal(GBADMAWriteSAD(gba, 3, GBA_BASE_EWRAM + 0x180), GBA_BASE_EWRAM + 0x180);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, base + 0x600), base + 0x600);
+	gba->memory.io[GBA_REG(DMA3CNT_LO)] = 2;
+	GBADMAWriteCNT_HI(gba, 3, 0x8400);
+	for (int i = 0; i < 4; ++i) mTimingTick(&gba->timing, 200);
+	assert_int_equal(GBAView32(cpu, base + 0x600), 0xAABBCCDD);
+	assert_int_equal(GBADMAWriteSAD(gba, 1, base + 0x500), base + 0x500);
+	assert_int_equal(GBADMAWriteDAD(gba, 1, GBA_BASE_EWRAM + 0x200), GBA_BASE_EWRAM + 0x200);
+	GBADMAWriteCNT_HI(gba, 1, 0x8400);
+	assert_false(GBADMARegisterIsEnable(gba->memory.dma[1].reg));
+	assert_int_equal(GBADMAWriteSAD(gba, 3, base + GBA_SIZE_XGBA_RAM), base + GBA_SIZE_XGBA_RAM);
+	assert_int_equal(GBADMAWriteDAD(gba, 3, GBA_BASE_EWRAM + 0x200), GBA_BASE_EWRAM + 0x200);
+	GBADMAWriteCNT_HI(gba, 3, 0x8400);
+	assert_false(GBADMARegisterIsEnable(gba->memory.dma[3].reg));
+
+	// A complete savestate must preserve the last byte, not only native EWRAM.
+	const size_t stateSize = core->stateSize(core);
+	assert_int_equal(stateSize, sizeof(struct GBASerializedState) + 16 + GBA_SIZE_XGBA_RAM);
+	uint8_t* snapshot = malloc(stateSize);
+	assert_non_null(snapshot);
+	assert_true(core->saveState(core, snapshot));
+	GBAStore8(cpu, last, 0x7B, NULL);
+	assert_true(core->loadState(core, snapshot));
+	assert_int_equal(GBALoad8(cpu, last, NULL), 0x5A);
+	snapshot[sizeof(struct GBASerializedState) + 16 + GBA_SIZE_XGBA_RAM - 1] ^= 1;
+	assert_false(core->loadState(core, snapshot));
+	assert_int_equal(GBALoad8(cpu, last, NULL), 0x5A);
+	free(snapshot);
+
+	// The real rewind API uses named savestates and must carry all 4 MiB.
+	struct mCoreRewindContext rewind = {0};
+	mCoreRewindContextInit(&rewind, 3, false);
+	GBAStore8(cpu, last, 0x33, NULL);
+	mCoreRewindAppend(&rewind, core);
+	GBAStore8(cpu, last, 0x44, NULL);
+	mCoreRewindAppend(&rewind, core);
+	GBAStore8(cpu, last, 0x55, NULL);
+	assert_true(mCoreRewindRestore(&rewind, core, 1));
+	assert_int_equal(GBALoad8(cpu, last, NULL), 0x33);
+	mCoreRewindContextDeinit(&rewind);
+
+	// Reset clears volatile RAM, without touching E6 save-file architecture.
+	GBAStore32(cpu, base + 0x104, 0xDEC0DE42, NULL);
+	mCoreInitConfig(core, NULL);
+	core->reset(core);
+	assert_int_equal(GBALoad32(cpu, base + 0x104, NULL), 0);
+	mCoreConfigDeinit(&core->config);
+
+	// Invalid instruction fetch addresses must not wrap to the first RAM byte.
+	cpu->gprs[ARM_PC] = base + GBA_SIZE_XGBA_RAM;
+	ARMWritePC(cpu);
+	assert_true(cpu->memory.activeRegion != (uint32_t*) gba->memory.xgbaRam);
+
+	core->unloadROM(core);
+	assert_null(gba->memory.xgbaRam);
+	assert_int_equal(core->stateSize(core), sizeof(struct GBASerializedState));
+	core->deinit(core);
+
+	// Reject an invalid R8 descriptor rather than enabling an ambiguous layout.
+	image[descriptor + 8] = 2;
+	core = GBACoreCreate();
+	assert_true(core->init(core));
+	vf = VFileFromConstMemory(image, GBA_SIZE_XGBA_ROM);
+	assert_false(core->loadROM(core, vf));
+	assert_null(((struct GBA*)core->board)->memory.xgbaRam);
+	core->deinit(core);
+	mappedMemoryFree(image, GBA_SIZE_XGBA_ROM);
+}
+
 M_TEST_SUITE_DEFINE(GBACore,
 	cmocka_unit_test(create),
 	cmocka_unit_test(platform),
 	cmocka_unit_test(reset),
-	cmocka_unit_test(loadNullROM))
+	cmocka_unit_test(loadNullROM),
+	cmocka_unit_test(loadExtendedROM),
+	cmocka_unit_test(r8Ram),
+	XGBA_FILE_TEST
+	XGBA_E5_SAVE_TEST
+	XGBA_E6_SAVE_TEST
+	cmocka_unit_test(generatedExtendedProgram),
+	cmocka_unit_test(generatedLegacyProgram),
+	cmocka_unit_test(partialExtendedROM),
+	cmocka_unit_test(unmarkedOversizedROM),
+	cmocka_unit_test(rejectExtendedROMOverLimit))

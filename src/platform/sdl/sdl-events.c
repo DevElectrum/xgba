@@ -596,6 +596,13 @@ static void _mSDLHandleKeypress(struct mCoreThread* context, struct mSDLPlayer* 
 	SDL_Keycode keycode = event->keysym.sym;
 	uint16_t modifiers = event->keysym.mod;
 #endif
+	// Fast-forward always takes priority over any game-key remapping.
+	if (keycode == SDLK_TAB) {
+		mCoreSyncLockAudio(&context->impl->sync);
+		context->impl->sync.audioWait = event->type != SDL_KEYDOWN;
+		mCoreSyncUnlockAudio(&context->impl->sync);
+		return;
+	}
 	if (!(modifiers & ~(KMOD_NUM | KMOD_CAPS))) {
 		key = mInputMapKey(sdlContext->bindings, SDL_BINDING_KEY, keycode);
 	}
@@ -607,10 +614,6 @@ static void _mSDLHandleKeypress(struct mCoreThread* context, struct mSDLPlayer* 
 			context->core->clearKeys(context->core, 1 << key);
 		}
 		mCoreThreadContinue(context);
-		return;
-	}
-	if (keycode == SDLK_TAB) {
-		context->impl->sync.audioWait = event->type != SDL_KEYDOWN;
 		return;
 	}
 	if (keycode == SDLK_BACKQUOTE) {

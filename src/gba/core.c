@@ -217,9 +217,11 @@ struct GBACore {
 	bool hasOverride;
 	struct mDebuggerPlatform* debuggerPlatform;
 	struct mCheatDevice* cheatDevice;
-	struct mCoreMemoryBlock memoryBlocks[12];
+	struct mCoreMemoryBlock memoryBlocks[16];
 	size_t nMemoryBlocks;
 	int memoryBlockType;
+	bool memoryBlockIsXgba;
+	bool memoryBlockIsXgbaRam;
 };
 
 #define _MAX(A, B) ((A > B) ? (A) : (B))
@@ -874,17 +876,53 @@ static void _GBACoreStep(struct mCore* core) {
 	ARMRun(core->cpu);
 }
 
+// The native GBA state ABI is unchanged. R8 appends its entire volatile RAM
+// for both ordinary savestates and rewind's raw core-state snapshots.
+#define XGBA_R8_STATE_MAGIC 0x38524158U
+#define XGBA_R8_STATE_BYTES (16 + GBA_SIZE_XGBA_RAM)
+
 static size_t _GBACoreStateSize(struct mCore* core) {
-	UNUSED(core);
-	return sizeof(struct GBASerializedState);
+	struct GBA* gba = core->board;
+	return sizeof(struct GBASerializedState)
+		+ (gba->memory.xgbaRam ? XGBA_R8_STATE_BYTES : 0);
 }
 
 static bool _GBACoreLoadState(struct mCore* core, const void* state) {
-	return GBADeserialize(core->board, state);
+	struct GBA* gba = core->board;
+	const uint8_t* extra = (const uint8_t*) state + sizeof(struct GBASerializedState);
+	if (gba->memory.xgbaRam) {
+		uint32_t magic, version, bytes, checksum;
+		LOAD_32(magic, 0, extra);
+		LOAD_32(version, 4, extra);
+		LOAD_32(bytes, 8, extra);
+		LOAD_32(checksum, 12, extra);
+		if (magic != XGBA_R8_STATE_MAGIC || version != 1
+		    || bytes != GBA_SIZE_XGBA_RAM
+		    || checksum != doCrc32(extra + 16, GBA_SIZE_XGBA_RAM)) {
+			mLOG(GBA, WARN, "R8 savestate missing or invalid 4 MiB RAM payload");
+			return false;
+		}
+	}
+	if (!GBADeserialize(gba, state)) {
+		return false;
+	}
+	if (gba->memory.xgbaRam) {
+		memcpy(gba->memory.xgbaRam, extra + 16, GBA_SIZE_XGBA_RAM);
+	}
+	return true;
 }
 
 static bool _GBACoreSaveState(struct mCore* core, void* state) {
-	GBASerialize(core->board, state);
+	struct GBA* gba = core->board;
+	GBASerialize(gba, state);
+	if (gba->memory.xgbaRam) {
+		uint8_t* extra = (uint8_t*) state + sizeof(struct GBASerializedState);
+		STORE_32(XGBA_R8_STATE_MAGIC, 0, extra);
+		STORE_32(1, 4, extra);
+		STORE_32(GBA_SIZE_XGBA_RAM, 8, extra);
+		memcpy(extra + 16, gba->memory.xgbaRam, GBA_SIZE_XGBA_RAM);
+		STORE_32(doCrc32(extra + 16, GBA_SIZE_XGBA_RAM), 12, extra);
+	}
 	return true;
 }
 
@@ -1112,7 +1150,9 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 	const struct GBA* gba = core->board;
 	struct GBACore* gbacore = (struct GBACore*) core;
 
-	if (gbacore->memoryBlockType != gba->memory.savedata.type) {
+	if (gbacore->memoryBlockType != gba->memory.savedata.type
+	    || gbacore->memoryBlockIsXgba != (gba->memory.xgbaRom != NULL)
+	    || gbacore->memoryBlockIsXgbaRam != (gba->memory.xgbaRam != NULL)) {
 		switch (gba->memory.savedata.type) {
 		case GBA_SAVEDATA_SRAM:
 			memcpy(gbacore->memoryBlocks, _GBAMemoryBlocksSRAM, sizeof(_GBAMemoryBlocksSRAM));
@@ -1150,7 +1190,29 @@ size_t _GBACoreListMemoryBlocks(const struct mCore* core, const struct mCoreMemo
 				gbacore->memoryBlocks[i].size = gba->memory.romSize;
 			}
 		}
+		if (gba->memory.xgbaRom) {
+			struct mCoreMemoryBlock extended = {
+				GBA_REGION_XGBA_ROM, "xgba", "XGBA ROM", "Extended ROM (up to 256MiB)",
+				GBA_BASE_XGBA_ROM, GBA_BASE_XGBA_ROM + gba->memory.xgbaRomSize,
+				gba->memory.xgbaRomSize, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED
+			};
+			gbacore->memoryBlocks[gbacore->nMemoryBlocks++] = extended;
+			gbacore->memoryBlocks[0].end = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM;
+			gbacore->memoryBlocks[0].size = GBA_BASE_XGBA_ROM + GBA_SIZE_XGBA_ROM;
+		}
 		gbacore->memoryBlockType = gba->memory.savedata.type;
+		if (gba->memory.xgbaRam) {
+			struct mCoreMemoryBlock expanded = {
+				GBA_REGION_XGBA_RAM, "xram", "XGBA RAM", "R8 RAM (4MiB)",
+				GBA_BASE_XGBA_RAM, GBA_BASE_XGBA_RAM + GBA_SIZE_XGBA_RAM,
+				GBA_SIZE_XGBA_RAM, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED
+			};
+			gbacore->memoryBlocks[gbacore->nMemoryBlocks++] = expanded;
+			gbacore->memoryBlocks[0].end = GBA_BASE_XGBA_RAM + GBA_SIZE_XGBA_RAM;
+			gbacore->memoryBlocks[0].size = GBA_BASE_XGBA_RAM + GBA_SIZE_XGBA_RAM;
+		}
+		gbacore->memoryBlockIsXgba = gba->memory.xgbaRom != NULL;
+		gbacore->memoryBlockIsXgbaRam = gba->memory.xgbaRam != NULL;
 
 		mCALLBACKS_INVOKE(gba, memoryBlocksChanged);
 	}
@@ -1187,6 +1249,13 @@ void* _GBACoreGetMemoryBlock(struct mCore* core, size_t id, size_t* sizeOut) {
 	case GBA_REGION_ROM2:
 		*sizeOut = gba->memory.romSize;
 		return gba->memory.rom;
+	case GBA_REGION_XGBA_RAM:
+		if (!gba->memory.xgbaRam) return NULL;
+		*sizeOut = GBA_SIZE_XGBA_RAM;
+		return gba->memory.xgbaRam;
+	case GBA_REGION_XGBA_ROM:
+		*sizeOut = gba->memory.xgbaRomSize;
+		return gba->memory.xgbaRom;
 	case GBA_REGION_SRAM:
 		if (gba->memory.savedata.type == GBA_SAVEDATA_FLASH1M) {
 			*sizeOut = GBA_SIZE_FLASH1M;

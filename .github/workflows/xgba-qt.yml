@@ -1,0 +1,49 @@
+name: XGBA Qt desktop CI
+
+on:
+  push:
+    branches:
+      - xgba/p1-fast-forward
+  pull_request:
+    branches:
+      - xgba/p0-validation-20261030
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-qt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out XGBA source
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6 and SDL 2 development packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+            zlib1g-dev libsdl2-dev qt6-base-dev qt6-multimedia-dev \
+            libqt6opengl6-dev qt6-l10n-tools
+
+      - name: Configure Qt desktop frontend
+        run: |
+          cmake -S . -B build-xgba-qt -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DM_CORE_GBA=ON \
+            -DM_CORE_GB=OFF \
+            -DBUILD_QT=ON \
+            -DBUILD_SDL=ON \
+            -DSDL_VERSION=2 \
+            -DFORCE_QT_VERSION=6 \
+            -DENABLE_SCRIPTING=OFF \
+            -DUSE_FFMPEG=OFF \
+            -DUSE_DISCORD_RPC=OFF \
+            -DBUILD_SUITE=OFF
+
+      - name: Compile XGBA Qt frontend
+        run: cmake --build build-xgba-qt --target mgba-qt --parallel 2
+
+      - name: Check Qt executable exists
+        run: test -x build-xgba-qt/qt/mgba-qt
